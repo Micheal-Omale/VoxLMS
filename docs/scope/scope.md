@@ -12,7 +12,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 |---|---------|-------|--------|
 | 1 | Stack & architecture | Foundation | in-progress |
 | 2 | Coding standards & tooling | Foundation | planned |
-| 3 | Data model | Foundation | planned |
+| 3 | Data model | Foundation | in-progress |
 | 4 | Design system & UI foundation | Foundation | in-progress |
 | 5 | Logins & access | Release 1 | planned |
 | 6 | School & term setup | Release 1 | planned |
@@ -46,10 +46,18 @@ Capture conventions from the real scaffolded project, then install lint, format,
 **Done when:** root `AGENTS.md` reflects the real stack, and lint, format, and commit checks run clean.
 - [ ] Capture conventions + tooling choices: `/audit`
 
-### 3. Data model · needs a decision · full
+### 3. Data model · in-progress · full
 The core records every release depends on: schools, sections, sessions and terms, classes, subjects, teachers, students, scores, remarks, ratings. Every record belongs to one school. Students are records now, with room for a login later (for the future learning platform). School subjects and classes map to a shared standard list (for example "General Mathematics" maps to Mathematics, "JSS1 Gold" maps to JSS1) so past questions can link across schools later.
 **Done when:** one school's data can never be read by another school; the model supports term results, third term cumulative results, and later student logins and shared learning content without a breaking change.
-- [ ] Design it (spec): `/architect data model`
+- [x] Design it (spec): `/architect data model`
+- [ ] Build it: `/develop data model`
+  - [ ] Dev database branch, schema and first migration (AC-1, AC-2, AC-11, AC-12)
+  - [ ] Seed data: standard lists and the demo school (AC-9, AC-12)
+  - [ ] School scoped data layer and the score save path (AC-3, AC-4, AC-5, AC-8, AC-10)
+  - [ ] Session results and grade bands, with tests (AC-6, AC-7, all ACs tested)
+- [ ] Verify it: `/check verify data model`
+- [ ] Test it: `/test data model`
+Spec [0003](../specs/0003-data-model/index.md) · code in `src/db/schema/`, `src/server/data/`
 
 ### 4. Design system & UI foundation · in-progress
 A simple, clear look and base components that work well on a teacher's phone and a staffroom computer.
