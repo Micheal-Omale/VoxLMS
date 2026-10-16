@@ -92,13 +92,13 @@ Spec [0004](../specs/0004-logins-access/index.md) · code in `src/server/auth/`,
 Our team sets up a school: name, logo, address, motto, principal's signature or stamp, sections (primary, secondary) with the right teacher title (class teacher, form master), the current session and term, and the school's plan (our branding or the school's own logo).
 **Done when:** our team can create the pilot school and set its current term, and every page shows the right school and term.
 - [x] Design it (spec): `/architect school & term setup`
-- [ ] Build it: `/develop school & term setup`
-  - [ ] School details, web name and the setup checklist (AC-1, AC-2, AC-3, AC-8)
-  - [ ] Logo and signature uploads (AC-4)
-  - [ ] Sections, sessions, terms and the current term switch (AC-5, AC-6, AC-7)
+- [x] Build it: `/develop school & term setup`
+  - [x] School details, web name and the setup checklist (AC-1, AC-2, AC-3, AC-8)
+  - [x] Logo and signature uploads (AC-4)
+  - [x] Sections, sessions, terms and the current term switch (AC-5, AC-6, AC-7)
 - [ ] Verify it: `/check verify school & term setup`
 - [ ] Test it: `/test school & term setup`
-Spec [0005](../specs/0005-school-term-setup.md) · code in `src/app/admin/schools/`, `src/server/data/setup.ts`
+Spec [0005](../specs/0005-school-term-setup/index.md) · code in `src/app/admin/schools/`, `src/server/data/setup.ts`, `src/app/school-logo/`
 
 ### 7. Classes, subjects & grading rules · needs a decision
 Our team adds classes and arms, the subjects each class offers (and each senior student's electives), the score split (for example CA1 20, CA2 20, Exam 60), and the grade scale for each section (JSS A to F, SS A1 to F9).

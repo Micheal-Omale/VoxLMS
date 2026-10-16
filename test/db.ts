@@ -52,19 +52,30 @@ async function ensureSchool(slug: string, code: string, name: string) {
 
 export type Fixture = Awaited<ReturnType<typeof loadFixture>>;
 
+/** Drizzle hides the database's own error in `cause`; surface it so setup failures are readable. */
+async function withCause<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    const cause = (error as { cause?: { message?: string; code?: string } }).cause;
+    throw new Error(`Fixture query failed: ${cause?.message ?? String(error)} (code ${cause?.code ?? "none"})`);
+  }
+}
+
 async function loadFixture(schoolId: string) {
-  const [terms, sections, classes, offers, students, sessions] = await Promise.all([
-    db.select().from(t.term).where(eq(t.term.schoolId, schoolId)),
-    db.select().from(t.section).where(eq(t.section.schoolId, schoolId)),
-    db.select().from(t.schoolClass).where(eq(t.schoolClass.schoolId, schoolId)),
-    db
+  // One query at a time: opening several connections at once is what failed intermittently.
+  const [terms, sections, classes, offers, students, sessions] = await withCause(async () => [
+    await db.select().from(t.term).where(eq(t.term.schoolId, schoolId)),
+    await db.select().from(t.section).where(eq(t.section.schoolId, schoolId)),
+    await db.select().from(t.schoolClass).where(eq(t.schoolClass.schoolId, schoolId)),
+    await db
       .select({ id: t.classSubject.id, classId: t.classSubject.classId, subject: t.schoolSubject.name, subjectId: t.schoolSubject.id })
       .from(t.classSubject)
       .innerJoin(t.schoolSubject, eq(t.schoolSubject.id, t.classSubject.subjectId))
       .where(eq(t.classSubject.schoolId, schoolId)),
-    db.select().from(t.student).where(eq(t.student.schoolId, schoolId)),
-    db.select().from(t.academicSession).where(eq(t.academicSession.schoolId, schoolId)),
-  ]);
+    await db.select().from(t.student).where(eq(t.student.schoolId, schoolId)),
+    await db.select().from(t.academicSession).where(eq(t.academicSession.schoolId, schoolId)),
+  ] as const);
   const one = <T>(rows: T[], what: string) => {
     if (rows.length !== 1) throw new Error(`Fixture: expected one ${what}, found ${rows.length}`);
     return rows[0];
@@ -83,7 +94,27 @@ async function loadFixture(schoolId: string) {
   };
 }
 
+/**
+ * The dev branch pauses when idle; the first burst of queries while it wakes
+ * can fail. Wait until it answers before loading fixtures.
+ */
+async function waitForDatabase() {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    try {
+      await pool.query("select 1");
+      return;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+    }
+  }
+  const cause = lastError instanceof Error ? `${lastError.message} ${String((lastError as { cause?: unknown }).cause ?? "")}` : String(lastError);
+  throw new Error(`The dev database did not answer after 5 tries: ${cause}`);
+}
+
 export async function setUpSchools() {
+  await waitForDatabase();
   await seedStandardLists(db);
   const [a, b] = [await ensureSchool("testschoola", "TSA", "Test School A"), await ensureSchool("testschoolb", "TSB", "Test School B")];
   return { a: await loadFixture(a), b: await loadFixture(b) };

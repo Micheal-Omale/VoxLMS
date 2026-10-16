@@ -1,0 +1,1 @@
+ALTER TABLE "school" ADD COLUMN "show_attendance" boolean DEFAULT false NOT NULL;

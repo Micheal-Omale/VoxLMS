@@ -4,7 +4,7 @@ import { type NextRequest, NextResponse } from "next/server";
 // A quick redirect for people with no session cookie (spec 0004). Not a
 // security boundary: every page and data function checks the session itself.
 
-const PUBLIC = /^\/(login|setup|design|api|brand|result)(\/|$)/;
+const PUBLIC = /^\/(login|setup|design|api|brand|result|school-logo)(\/|$)/;
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -41,6 +41,8 @@ export const school = pgTable(
     phone: text("phone"),
     email: text("email"),
     plan: plan("plan").notNull().default("basic"),
+    /** Report cards show the attendance box (times opened, present, absent). Off for the pilot. */
+    showAttendance: boolean("show_attendance").notNull().default(false),
     logoAssetId: uuid("logo_asset_id"),
     /** Last student number handed out; only ever increases (see allocateStudentNumbers). */
     studentNoCounter: integer("student_no_counter").notNull().default(0),

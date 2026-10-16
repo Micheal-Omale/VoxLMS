@@ -114,3 +114,12 @@ export async function markPasswordConfirmed(viewer: Viewer) {
     .set({ passwordConfirmedAt: new Date() })
     .where(and(eq(sessionTable.id, viewer.sessionId), eq(sessionTable.userId, viewer.userId)));
 }
+
+/** Our team working on one school, addressed by its id in the team area (spec 0005). */
+export async function requireTeamSchoolContext(schoolId: string): Promise<{ ctx: SchoolContext; viewer: Viewer }> {
+  const viewer = await requireTeam();
+  if (!/^[0-9a-f-]{36}$/.test(schoolId)) notFound();
+  const [found] = await db.select({ id: school.id }).from(school).where(eq(school.id, schoolId));
+  if (!found) notFound();
+  return { viewer, ctx: schoolContext({ schoolId: found.id, userId: viewer.userId, actor: { kind: "admin", readOnly: false } }) };
+}

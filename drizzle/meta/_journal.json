@@ -29,6 +29,13 @@
       "when": 1792178761966,
       "tag": "0003_session_password_confirmed",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792182399395,
+      "tag": "0004_school_show_attendance",
+      "breakpoints": true
     }
   ]
 }

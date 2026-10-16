@@ -7,11 +7,9 @@
 
 Our team sets up each school in the team area as a short checklist: the school's details and web name, its logo, its sections (with the right teacher title and head's name and signature), and its sessions and terms, then switches the current term when the school resumes. Images are shrunk in the browser before upload; the logo may be shown publicly, but signatures are never served on the web, only placed into report cards on the server. Every school page already shows the school and current term, so once this is done a teacher signs in to the right school and term.
 
-## Context
+## Rationale
 
-The data model (spec 0003) already holds schools, sections, sessions, terms and images; logins (spec 0004) give our team a team area. What is missing is the way to fill them in. The scope's goal for onboarding is about an hour per school with no new code (#20), and the pilot must be set up before First Term results (early December 2026).
-
-Decisions confirmed with the engineer: the pilot's report card carries the school logo, the principal's signature (secondary) and the head teacher's signature (primary), and no stamp; our team switches the current term by hand when the school confirms (resumption dates move); the pilot's report card has no attendance box, so "times school opened" is optional and controlled by a school setting; a school's web name can change later, with a warning that old links stop working.
+Reasoning and options: see [rationale.md](rationale.md).
 
 ## Requirements
 
@@ -30,49 +28,11 @@ Decisions confirmed with the engineer: the pilot's report card carries the schoo
 - **AC-7**: Our team makes any term the current term in one click, after confirming. Exactly one term per school is current, and every school page (team and teachers) shows it at once.
 - **AC-8**: Every setup action is for our team only (anyone else gets not found), and our team's changes keep the school boundary (spec 0003): nothing set up for one school can touch another.
 
-## Options considered
-
-### Option 1: Setup checklist with small forms (chosen)
-
-A "New school" form with the essentials, then the school's team page lists the parts of setup as a checklist; each part is a small form on its own page.
-
-**Pros**:
-- Short forms that each save on their own, so a dropped connection loses little.
-- Later features (classes, teachers, grading, imports) add checklist items without redesign.
-- The checklist shows at a glance what a school still needs before results day.
-
-**Cons**:
-- More pages than one long form.
-
-### Option 2: One step by step wizard
-
-A single flow walking through every part in order.
-
-**Pros**:
-- Guided for a first time user.
-
-**Cons**:
-- Hard to come back to one part later; a wizard interrupted halfway is confusing; every new feature changes the wizard.
-
-### Option 3: One long settings form
-
-Everything on one page.
-
-**Pros**:
-- Fewest pages.
-
-**Cons**:
-- Long on a phone, one failed field blocks the whole save, and images and terms don't fit well in one form.
-
 ## Decision
 
 **Chosen option**: Option 1: a setup checklist with small forms in the team area, server actions for every change, a route handler for image uploads, and a route handler that serves logos only.
 
 **Implementation skills**: `neon-drizzle` (`neondatabase/ai-rules`, `.claude/skills/neon-drizzle/`) · `shadcn` (`shadcn-ui/ui`, `.claude/skills/shadcn/`)
-
-## Rationale
-
-Onboarding has to fit in about an hour and survive a patchy connection in a school office, which favours small forms that each save on their own over a wizard or one long form. The checklist also becomes the place later features plug into, so the team always sees what a school still needs. Uploads go through a route handler because server actions accept only 1 MB by default and images need their own size checks (spec 0001); shrinking in the browser keeps report card PDFs small. Signatures are kept off the web entirely because a principal's signature on a public address is easy to copy; the server reads it straight from the database when it makes a PDF. Switching the term by hand follows the engineer's choice: resumption dates move with strikes and holidays.
 
 ## Feature design
 
@@ -94,7 +54,7 @@ Onboarding has to fit in about an hour and survive a patchy connection in a scho
 | `/admin/schools/[id]/details` | page + action `updateSchoolDetails` | details, plan, show attendance, confirm web name change | saved | our team | as above; web name change not confirmed |
 | `POST /admin/schools/[id]/images` | route handler | `kind` (logo or signature), `sectionId` for a signature, one image file | asset saved and linked | our team | not an image; over 300 KB; section not in this school |
 | `GET /school-logo/[assetId]` | route handler | none | the logo, `Cache-Control: public, max-age=31536000, immutable` | anyone | not found for anything that isn't a logo |
-| `GET /admin/images/[assetId]` | route handler | none | image for preview, `Cache-Control: private, no-store` | our team | not found |
+| `GET /admin/schools/[id]/images/[assetId]` | route handler | none | image for preview, `Cache-Control: private, no-store` | our team | not found |
 | `/admin/schools/[id]/sections` | page + actions `saveSection`, `removeSection` | stage, titles, head name | saved | our team | stage already used; section has classes |
 | `/admin/schools/[id]/terms` | page + actions `saveSession`, `setCurrentTerm` | session name, three terms' dates, days opened | saved; current term switched | our team | dates out of order; name taken |
 
@@ -121,13 +81,13 @@ Onboarding has to fit in about an hour and survive a patchy connection in a scho
 
 Skateboard: the shortest path to a set up pilot school first, then the polish.
 
-1. [ ] Migration: `school.show_attendance`; reserved web names list; satisfies **AC-1**, **AC-3**.
-2. [ ] Data functions for school details, sections, sessions and terms, and images (school scoped, team only, with the validation rules); satisfies **AC-1**, **AC-3**, **AC-5**, **AC-6**, **AC-7**, **AC-8**.
-3. [ ] "New school" page and the school checklist page (logins move below it); satisfies **AC-1**, **AC-2**.
-4. [ ] Details page with the web name change warning; satisfies **AC-3**.
-5. [ ] Image upload (browser shrink, route handler, logo route, private preview route) on the details and sections pages; satisfies **AC-4**.
-6. [ ] Sections page; sessions and terms page with current term switch; satisfies **AC-5**, **AC-6**, **AC-7**.
-7. [ ] Tests for the data rules and access; satisfies **AC-1** to **AC-8**.
+1. [x] Migration: `school.show_attendance`; reserved web names list; satisfies **AC-1**, **AC-3**.
+2. [x] Data functions for school details, sections, sessions and terms, and images (school scoped, team only, with the validation rules); satisfies **AC-1**, **AC-3**, **AC-5**, **AC-6**, **AC-7**, **AC-8**.
+3. [x] "New school" page and the school checklist page (logins move below it); satisfies **AC-1**, **AC-2**.
+4. [x] Details page with the web name change warning; satisfies **AC-3**.
+5. [x] Image upload (browser shrink, route handler, logo route, private preview route) on the details and sections pages; satisfies **AC-4**.
+6. [x] Sections page; sessions and terms page with current term switch; satisfies **AC-5**, **AC-6**, **AC-7**.
+7. [x] Tests for the data rules and access; satisfies **AC-1** to **AC-8**.
 
 ## Consequences
 
@@ -148,3 +108,4 @@ Skateboard: the shortest path to a set up pilot school first, then the polish.
 
 - [ ] Remarks and attendance (#11): attendance only for schools with "Report card shows attendance" on.
 - [ ] Report card PDF (#12): read the logo and signatures from the database by id; never fetch them over HTTP.
+- [ ] Watch for intermittent failures when a page runs several database queries at the same moment on a cold connection (seen in tests, fixed there by running them one at a time; not seen in the app so far).
