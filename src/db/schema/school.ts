@@ -16,6 +16,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { bytea, createdAt, id, updatedAt } from "./columns";
+import { user } from "./auth";
 import { assetKind, plan, stage, staffRole, staffStatus } from "./enums";
 import { standardLevel, standardSubject } from "./standard";
 
@@ -304,12 +305,15 @@ export const staff = pgTable(
     phone: text("phone").notNull(),
     role: staffRole("role").notNull(),
     status: staffStatus("status").notNull().default("active"),
+    /** Their VoxLMS login (spec 0004); one login can be staff in several schools. */
+    userId: text("user_id").references((): AnyPgColumn => user.id),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     unique("staff_school_phone_key").on(t.schoolId, t.phone),
     unique("staff_school_id_key").on(t.schoolId, t.id),
+    unique("staff_school_user_key").on(t.schoolId, t.userId),
   ],
 );
 

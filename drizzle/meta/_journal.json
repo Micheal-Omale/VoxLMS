@@ -15,6 +15,20 @@
       "when": 1792173544958,
       "tag": "0001_student_numbers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792177924202,
+      "tag": "0002_logins",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792178761966,
+      "tag": "0003_session_password_confirmed",
+      "breakpoints": true
     }
   ]
 }

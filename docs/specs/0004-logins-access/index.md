@@ -58,12 +58,12 @@ Reasoning and options: see [rationale.md](rationale.md).
 | Table | Fields | Rules |
 |---|---|---|
 | `user` (Better Auth) | `id` text, `name`, `email` (placeholder), `email_verified`, `image`, `username` (phone digits), `display_username`, `role` (`user` or `admin`), `banned`, `ban_reason`, `ban_expires`, timestamps | `username` and `email` unique |
-| `session` (Better Auth) | `id`, `token`, `user_id`, `expires_at`, `ip_address`, `user_agent`, `impersonated_by` (null), `shared_device` boolean (set on the server only, never from client input), timestamps | `token` unique |
+| `session` (Better Auth) | `id`, `token`, `user_id`, `expires_at`, `ip_address`, `user_agent`, `impersonated_by` (null), `shared_device` boolean (set on the server only, never from client input), `password_confirmed_at` (null: when the person last typed their password; gates sensitive team actions), timestamps | `token` unique |
 | `account` (Better Auth) | `id`, `user_id`, `provider_id` (`credential`), `password` (hash), timestamps | Better Auth owns it |
 | `verification` (Better Auth) | `id`, `identifier`, `value`, `expires_at` | Holds setup link tokens (`reset-password:<token>` → user id) |
 | `staff` (changed) | add `user_id` text (null) | Links to `user`; `unique (school_id, user_id)` |
 | `sign_in_throttle` | `key` text (`phone:<digits>`, `phone_ip:<digits>:<ip>`, `ip:<ip>`, `admin:<user id>`), `failures` int, `window_started_at` timestamptz | Primary key `key`; bumped with one atomic insert or update; an expired window starts again at 1 |
-| `auth_event` | `id`, `kind` enum (`sign_in`, `sign_in_failed`, `sign_out`, `setup_link_created`, `password_set`, `password_changed`, `phone_changed`, `signed_out_everywhere`, `login_disabled`, `login_enabled`, `view_as_started`), `user_id` (null), `actor_user_id` (null), `school_id` (null), `ip_address` (null), `user_agent` (null), `detail` jsonb (null), `created_at` | A trigger rejects update and delete; indexes on `(user_id, created_at)` and `(created_at)`; `view_as_started` stores its end time in `detail` |
+| `auth_event` | `id`, `kind` enum (`sign_in`, `sign_in_failed`, `sign_out`, `setup_link_created`, `password_set`, `password_changed`, `phone_changed`, `signed_out_everywhere`, `login_created`, `login_disabled`, `login_enabled`, `view_as_started`, `view_as_ended`), `user_id` (null), `actor_user_id` (null), `school_id` (null), `ip_address` (null), `user_agent` (null), `detail` jsonb (null), `created_at` | A trigger rejects update and delete; indexes on `(user_id, created_at)` and `(created_at)`; `view_as_started` stores its end time in `detail` |
 
 **State transitions**:
 - login: none (staff without `user_id`) → created (password unknown to anyone) → active (password set through a setup link) → switched off (`banned`, sessions revoked, links cancelled) → active again.
@@ -124,13 +124,13 @@ Reasoning and options: see [rationale.md](rationale.md).
 
 Skateboard: a teacher who can really sign in and reach only their class first, then the setup and support tools around it.
 
-1. Install Better Auth (check the installed version's behaviour on reset tokens, impersonation of admins, and `rememberMe`), generate its tables into `src/db/schema/auth.ts`, add `staff.user_id`, `sign_in_throttle`, `auth_event` and its trigger; migrate the dev branch; satisfies **AC-1**, **AC-11**.
-2. Auth config, the 404 stub for `/api/auth/*`, password rules, throttle, audit helpers, `npm run admin:create`; satisfies **AC-1**, **AC-4**, **AC-6**, **AC-11**, **AC-12**.
-3. `getViewer`, `requireSchoolContext`, `requireAdmin`, `requireFreshAdmin`, the actor in `SchoolContext`, form teacher and read only checks in the data access layer, `src/proxy.ts`; satisfies **AC-5**, **AC-7**, **AC-8**.
-4. Pages and actions: `/login`, sign out, `/choose-school`, `/{school}` layout and a minimal school home listing the teacher's classes, `/account/password`; satisfies **AC-2**, **AC-5**, **AC-7**, **AC-10**.
-5. Setup links: `makeSetupLink`, QR code and WhatsApp message, `/setup/[token]`; satisfies **AC-3**.
-6. Minimal `/admin`: schools, staff with login status and last sign in, create login (with the same person confirmation), setup link, change phone, sign out everywhere, switch off or on, read only view as with banner; satisfies **AC-9**, **AC-13**.
-7. Tests (Vitest against the dev branch) for every scenario above, and logins for the demo school's teachers in the seed; satisfies **AC-1** to **AC-13**.
+1. [x] Install Better Auth (check the installed version's behaviour on reset tokens, impersonation of admins, and `rememberMe`), generate its tables into `src/db/schema/auth.ts`, add `staff.user_id`, `sign_in_throttle`, `auth_event` and its trigger; migrate the dev branch; satisfies **AC-1**, **AC-11**.
+2. [x] Auth config, the 404 stub for `/api/auth/*`, password rules, throttle, audit helpers, `npm run admin:create`; satisfies **AC-1**, **AC-4**, **AC-6**, **AC-11**, **AC-12**.
+3. [x] `getViewer`, `requireSchoolContext`, `requireAdmin`, `requireFreshAdmin`, the actor in `SchoolContext`, form teacher and read only checks in the data access layer, `src/proxy.ts`; satisfies **AC-5**, **AC-7**, **AC-8**.
+4. [x] Pages and actions: `/login`, sign out, `/choose-school`, `/{school}` layout and a minimal school home listing the teacher's classes, `/account/password`; satisfies **AC-2**, **AC-5**, **AC-7**, **AC-10**.
+5. [x] Setup links: `makeSetupLink`, QR code and WhatsApp message, `/setup/[token]`; satisfies **AC-3**.
+6. [x] Minimal `/admin`: schools, staff with login status and last sign in, create login (with the same person confirmation), setup link, change phone, sign out everywhere, switch off or on, read only view as with banner; satisfies **AC-9**, **AC-13**.
+7. [x] Tests (Vitest against the dev branch) for every scenario above, and logins for the demo school's teachers in the seed; satisfies **AC-1** to **AC-13**.
 
 ## Consequences
 
@@ -157,3 +157,5 @@ Skateboard: a teacher who can really sign in and reach only their class first, t
 - [ ] Enrol teachers and students (#8): creating a staff member offers "create login" in the same step.
 - [ ] Launch readiness (#17): `BETTER_AUTH_SECRET` per Vercel environment; previews get their own Neon branch and secret; consider an authenticator app for our team before more schools join.
 - [ ] Principal and school admin roles: switched on by the features that need them.
+- [ ] Pages that stream their content (Cache Components) show "not found" with HTTP status 200, because the status is sent before the session check finishes. No data is shown; a stricter 404 status would need the check moved before streaming (for example in the proxy). Decide if search engines or monitoring need the real status.
+- [ ] Score entry (#9) and later class pages: call the data layer through `requireSchoolContext` so the teacher and read only checks apply.

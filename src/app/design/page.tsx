@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { CircleAlertIcon, CircleCheckIcon, HistoryIcon, PlusIcon, PrinterIcon, UsersIcon } from "lucide-react";
 
@@ -70,13 +71,13 @@ export default function DesignSystemPage() {
           read and check, because parents will check it.
         </p>
         <div className="flex flex-wrap gap-3">
-          <Button nativeButton={false} render={<a href="/design/score-entry" />}>
+          <Button nativeButton={false} render={<Link href="/design/score-entry" />}>
             Open score entry preview
           </Button>
-          <Button variant="outline" nativeButton={false} render={<a href="/design/sign-in" />}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/design/sign-in" />}>
             Open sign in preview
           </Button>
-          <Button variant="outline" nativeButton={false} render={<a href="/design/logo" />}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/design/logo" />}>
             Logo guidelines
           </Button>
         </div>

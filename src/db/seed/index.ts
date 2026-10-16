@@ -2,14 +2,17 @@
 //   npm run db:seed            standard levels and subjects (any branch)
 //   npm run db:seed -- --demo  also the made-up demo school (development branches only)
 //   npm run db:seed -- --reset-demo  remove the demo school, then seed it again
+//   npm run db:seed -- --demo-logins  give the demo teachers logins and print their setup links
+//                                     (nobody sets a teacher's password, not even the seed)
 import { createSeedDb } from "./client";
 import { DEMO_SLUG, removeSchoolBySlug, seedDemoSchool } from "./demo-school";
 import { seedStandardLists } from "./standard-lists";
+import { printDemoSetupLinks } from "./demo-logins";
 
 process.loadEnvFile(".env.local");
 
 const args = new Set(process.argv.slice(2));
-const wantsDemo = args.has("--demo") || args.has("--reset-demo");
+const wantsDemo = args.has("--demo") || args.has("--reset-demo") || args.has("--demo-logins");
 
 function assertDemoAllowed() {
   if (process.env.NEON_BRANCH === "production") {
@@ -33,6 +36,7 @@ async function main() {
     if (wantsDemo) {
       const result = await seedDemoSchool(db);
       console.log(result.created ? "Demo school created: /gracehigh" : "Demo school already exists: /gracehigh");
+      if (args.has("--demo-logins")) await printDemoSetupLinks(db, result.schoolId);
     }
   } finally {
     await pool.end();

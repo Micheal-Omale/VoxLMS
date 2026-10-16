@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 
 import { guardian, student, studentGuardian } from "@/db/schema";
 
+import { assertNotTeacher, assertWritable } from "./access";
 import type { SchoolContext } from "./context";
 import { DataError, NotFound } from "./errors";
 
@@ -21,6 +22,8 @@ export async function linkGuardian(
   ctx: SchoolContext,
   input: { studentId: string; guardianId: string; relationship: "mother" | "father" | "guardian"; isPrimary: boolean },
 ) {
+  assertNotTeacher(ctx, "Student");
+  assertWritable(ctx);
   await ctx.db.transaction(async (tx) => {
     const [child] = await tx
       .select({ id: student.id })

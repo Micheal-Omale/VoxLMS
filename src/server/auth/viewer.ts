@@ -1,0 +1,116 @@
+import "server-only";
+
+import { and, eq } from "drizzle-orm";
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
+
+import { db } from "@/db";
+import { school, session as sessionTable } from "@/db/schema";
+import { type SchoolContext, schoolContext } from "@/server/data";
+
+import { auth } from "./auth";
+import { SHARED_DEVICE_HOURS, TEAM_SESSION_HOURS } from "./config";
+import { activeSchoolsFor } from "./service";
+
+// Who is signed in (spec 0004). Cached for one request with React's cache,
+// never with 'use cache', so it can't leak between people.
+
+export type Viewer = {
+  userId: string;
+  name: string;
+  phone: string | null;
+  isTeam: boolean;
+  /** Set while our team is viewing as this person: the team member's user id. */
+  viewingAsBy: string | null;
+  sessionId: string;
+  passwordConfirmedAt: Date | null;
+  schools: Awaited<ReturnType<typeof activeSchoolsFor>>;
+};
+
+const hoursAgo = (hours: number) => Date.now() - hours * 3600 * 1000;
+
+export const getViewer = cache(async (): Promise<Viewer | null> => {
+  const found = await auth.api.getSession({ headers: await headers() });
+  if (!found) return null;
+  const { session, user } = found;
+
+  const [row] = await db
+    .select({ sharedDevice: sessionTable.sharedDevice, passwordConfirmedAt: sessionTable.passwordConfirmedAt })
+    .from(sessionTable)
+    .where(eq(sessionTable.id, session.id));
+  const isTeam = user.role === "admin" && !session.impersonatedBy;
+  const created = new Date(session.createdAt).getTime();
+  // Hard limits, whatever the browser does with its cookies (AC-5).
+  const tooOld =
+    (row?.sharedDevice && created < hoursAgo(SHARED_DEVICE_HOURS)) ||
+    (isTeam && created < hoursAgo(TEAM_SESSION_HOURS));
+  if (!row || tooOld) {
+    await db.delete(sessionTable).where(eq(sessionTable.id, session.id));
+    return null;
+  }
+
+  return {
+    userId: user.id,
+    name: user.name,
+    phone: (user as { username?: string | null }).username ?? null,
+    isTeam,
+    viewingAsBy: session.impersonatedBy ?? null,
+    sessionId: session.id,
+    passwordConfirmedAt: row.passwordConfirmedAt,
+    schools: await activeSchoolsFor(db, user.id),
+  };
+});
+
+/** Pages for signed in people only. */
+export async function requireViewer(): Promise<Viewer> {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
+  return viewer;
+}
+
+/**
+ * The school named in the address, for someone allowed in it (AC-7, AC-8).
+ * Anyone else gets "not found". Teachers act only on their own classes;
+ * while our team is viewing as someone, nothing can be saved.
+ */
+export async function requireSchoolContext(slug: string): Promise<{ ctx: SchoolContext; viewer: Viewer; school: typeof school.$inferSelect }> {
+  const viewer = await requireViewer();
+  const [found] = await db.select().from(school).where(eq(school.slug, slug));
+  if (!found) notFound();
+
+  if (viewer.isTeam) {
+    return { viewer, school: found, ctx: schoolContext({ schoolId: found.id, userId: viewer.userId, actor: { kind: "admin", readOnly: false } }) };
+  }
+  const membership = viewer.schools.find((s) => s.schoolId === found.id);
+  if (!membership) notFound();
+  return {
+    viewer,
+    school: found,
+    ctx: schoolContext({
+      schoolId: found.id,
+      userId: viewer.userId,
+      actor: { kind: "teacher", staffId: membership.staffId, readOnly: viewer.viewingAsBy !== null },
+    }),
+  };
+}
+
+export async function requireTeam(): Promise<Viewer> {
+  const viewer = await requireViewer();
+  if (!viewer.isTeam) notFound();
+  return viewer;
+}
+
+const FRESH_MINUTES = 15;
+
+/** True if the team member typed their password in the last 15 minutes (AC-9). */
+export function isFresh(viewer: Viewer) {
+  return viewer.passwordConfirmedAt !== null && viewer.passwordConfirmedAt.getTime() > Date.now() - FRESH_MINUTES * 60 * 1000;
+}
+
+export async function markPasswordConfirmed(viewer: Viewer) {
+  await db
+    .update(sessionTable)
+    .set({ passwordConfirmedAt: new Date() })
+    .where(and(eq(sessionTable.id, viewer.sessionId), eq(sessionTable.userId, viewer.userId)));
+}

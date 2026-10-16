@@ -4,6 +4,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { school } from "@/db/schema";
 
+import { assertNotTeacher, assertWritable } from "./access";
 import type { SchoolContext } from "./context";
 import { DataError, NotFound } from "./errors";
 
@@ -14,6 +15,8 @@ import { DataError, NotFound } from "./errors";
  * inserts the students.
  */
 export async function allocateStudentNumbers(ctx: SchoolContext, input: { count: number }): Promise<number[]> {
+  assertNotTeacher(ctx, "School");
+  assertWritable(ctx);
   if (!Number.isInteger(input.count) || input.count < 1) throw new DataError("count must be a positive whole number");
   const [row] = await ctx.db
     .update(school)

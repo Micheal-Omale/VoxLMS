@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import { academicSession, term } from "@/db/schema";
 
+import { assertNotTeacher, assertWritable } from "./access";
 import type { SchoolContext } from "./context";
 import { NoCurrentTerm, NotFound } from "./errors";
 
@@ -19,6 +20,8 @@ export async function getCurrentTerm(ctx: SchoolContext) {
 
 /** Makes one term current and clears the flag on the school's other terms. */
 export async function setCurrentTerm(ctx: SchoolContext, input: { termId: string }) {
+  assertNotTeacher(ctx, "Term");
+  assertWritable(ctx);
   await ctx.db.transaction(async (tx) => {
     const [target] = await tx
       .select({ id: term.id })

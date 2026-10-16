@@ -16,6 +16,7 @@ import {
   term,
 } from "@/db/schema";
 
+import { assertClassAccess, assertWritable } from "./access";
 import type { Executor, SchoolContext } from "./context";
 import {
   Conflict,
@@ -131,6 +132,7 @@ async function loadTakers(db: Executor, schoolId: string, offer: Offer, studentI
 /** Everything the score entry screen needs for one subject of one class in one term. */
 export async function getScoreSheet(ctx: SchoolContext, input: { termId: string; classSubjectId: string }) {
   const offer = await loadClassSubject(ctx.db, ctx.schoolId, input.termId, input.classSubjectId);
+  await assertClassAccess(ctx, { classId: offer.classId, sessionId: offer.sessionId });
   const [components, bands, takers] = await Promise.all([
     loadComponents(ctx.db, ctx.schoolId, offer),
     ctx.db
@@ -201,6 +203,7 @@ export async function saveScores(
 ) {
   const userId = ctx.userId;
   if (!userId) throw new NotSignedIn();
+  assertWritable(ctx);
 
   // 1. Shape checks before any database work.
   const seen = new Set<string>();
@@ -220,6 +223,7 @@ export async function saveScores(
   return ctx.db.transaction(async (tx) => {
     // 2. Resolve parts through the class's section and the subject's session.
     const offer = await loadClassSubject(tx, ctx.schoolId, input.termId, input.classSubjectId);
+    await assertClassAccess({ ...ctx, db: tx }, { classId: offer.classId, sessionId: offer.sessionId });
     const components = await loadComponents(tx, ctx.schoolId, offer);
     const byKey = new Map(components.map((c) => [c.key, c]));
     for (const change of input.changes) {

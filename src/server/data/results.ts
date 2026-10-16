@@ -5,6 +5,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   assessmentComponent,
   classSubject,
+  classTeacher,
   enrolment,
   gradeBand,
   schoolClass,
@@ -44,6 +45,26 @@ export async function getStudentSessionResults(ctx: SchoolContext, input: { stud
     .from(student)
     .where(and(eq(student.schoolId, ctx.schoolId), eq(student.id, input.studentId)));
   if (!owned) throw new NotFound("Student");
+  if (ctx.actor.kind === "teacher") {
+    // A teacher sees a student's session only if the student is in one of their form classes then.
+    const mine = await ctx.db
+      .select({ id: enrolment.id })
+      .from(enrolment)
+      .innerJoin(
+        classTeacher,
+        and(eq(classTeacher.classId, enrolment.classId), eq(classTeacher.sessionId, enrolment.sessionId)),
+      )
+      .where(
+        and(
+          eq(enrolment.schoolId, ctx.schoolId),
+          eq(enrolment.studentId, input.studentId),
+          eq(enrolment.sessionId, input.sessionId),
+          eq(classTeacher.staffId, ctx.actor.staffId),
+        ),
+      )
+      .limit(1);
+    if (mine.length === 0) throw new NotFound("Student");
+  }
 
   const terms = await ctx.db
     .select({ id: term.id, number: term.number })

@@ -79,14 +79,14 @@ The pilot school can enter one class's scores and print every report card for th
 Our team and teachers sign in. No public sign up: our team creates every account, gives a temporary password, and resets forgotten ones. A teacher only ever reaches their own class in their own school.
 **Done when:** a teacher signs in with a phone number or username, must change the temporary password on first sign in, and the server refuses any read or write outside the teacher's assigned class, even if the address is changed by hand.
 - [x] Design it (spec): `/architect logins & access`
-- [ ] Build it: `/develop logins & access`
-  - [ ] Better Auth, auth tables, throttle and audit log, no public auth endpoints (AC-1, AC-4, AC-6, AC-11, AC-12)
-  - [ ] Viewer, school and class access checks in the data layer, sign in and school pages (AC-2, AC-5, AC-7, AC-8, AC-10)
-  - [ ] Setup links by QR and WhatsApp, minimal admin area with read only view as (AC-3, AC-9, AC-13)
-  - [ ] Tests and demo logins (all ACs)
+- [x] Build it: `/develop logins & access`
+  - [x] Better Auth, auth tables, throttle and audit log, no public auth endpoints (AC-1, AC-4, AC-6, AC-11, AC-12)
+  - [x] Viewer, school and class access checks in the data layer, sign in and school pages (AC-2, AC-5, AC-7, AC-8, AC-10)
+  - [x] Setup links by QR and WhatsApp, minimal admin area with read only view as (AC-3, AC-9, AC-13)
+  - [x] Tests and demo logins (all ACs)
 - [ ] Verify it: `/check verify logins & access`
 - [ ] Test it: `/test logins & access`
-Spec [0004](../specs/0004-logins-access/index.md) · code in `src/server/auth/`, `src/app/(auth)/`, `src/app/admin/`
+Spec [0004](../specs/0004-logins-access/index.md) · code in `src/server/auth/`, `src/app/login/`, `src/app/setup/`, `src/app/[school]/`, `src/app/admin/`
 
 ### 6. School & term setup · needs a decision
 Our team sets up a school: name, logo, address, motto, principal's signature or stamp, sections (primary, secondary) with the right teacher title (class teacher, form master), the current session and term, and the school's plan (our branding or the school's own logo).

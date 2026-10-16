@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { DownloadIcon } from "lucide-react";
 
@@ -23,9 +24,9 @@ export default function LogoPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-16 px-4 py-10 sm:px-6 sm:py-14">
       <header className="flex flex-col gap-8">
-        <a href="/design" className="type-caption font-semibold text-muted-foreground hover:text-foreground">
+        <Link href="/design" className="type-caption font-semibold text-muted-foreground hover:text-foreground">
           Design system
-        </a>
+        </Link>
         <div className="flex items-center justify-center rounded-xl border border-rule bg-card px-6 py-16 sm:py-24">
           <Logo className="h-14 sm:h-20" />
         </div>
@@ -141,7 +142,7 @@ export default function LogoPage() {
         <ul className="flex flex-wrap gap-3">
           {downloads.map((item) => (
             <li key={item.file}>
-              <Button variant="outline" nativeButton={false} render={<a href={`/brand/${item.file}`} download />}>
+              <Button variant="outline" nativeButton={false} render={<Link href={`/brand/${item.file}`} download />}>
                 <DownloadIcon data-icon="inline-start" />
                 {item.label}
               </Button>

@@ -1,25 +1,13 @@
-import { KeyRoundIcon, LogOutIcon } from "lucide-react";
-
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { AccountMenu } from "@/components/account-menu";
 
 type AppBarProps = {
   school: { name: string; logoUrl?: string };
   /** Shown on every school page so nobody enters scores into the wrong term. */
   term: string;
-  user: { name: string; role: string };
+  account: { name: string; detail: string; canSwitchSchool: boolean; readOnly: boolean };
 };
 
-export function AppBar({ school, term, user }: AppBarProps) {
+export function AppBar({ school, term, account }: AppBarProps) {
   return (
     <header className="border-b border-rule bg-card">
       <div className="mx-auto flex h-16 w-full max-w-5xl items-center gap-3 px-4 sm:px-6">
@@ -28,36 +16,7 @@ export function AppBar({ school, term, user }: AppBarProps) {
           <span className="truncate font-bold">{school.name}</span>
           <span className="truncate type-caption text-muted-foreground">{term}</span>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" aria-label={`Account: ${user.name}`} />}
-          >
-            <Avatar className="size-9">
-              <AvatarFallback className="bg-secondary font-bold text-secondary-foreground">
-                {initials(user.name)}
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-56">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="flex flex-col gap-0.5">
-                <span className="text-base font-bold text-foreground">{user.name}</span>
-                <span className="font-normal">{user.role}</span>
-              </DropdownMenuLabel>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <KeyRoundIcon />
-                Change password
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <LogOutIcon />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AccountMenu {...account} />
       </div>
     </header>
   );
