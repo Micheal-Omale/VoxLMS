@@ -1,4 +1,4 @@
-# Scope: School Results System
+# Scope: VoxLMS (school results system)
 
 A results and report card system for Nigerian primary and secondary schools. Teachers enter scores for their class, the system computes results, and the school prints standard Nigerian report cards. Our team onboards each school. Built for many schools from day one, starting with one pilot school (under 200 students).
 
@@ -13,7 +13,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 1 | Stack & architecture | Foundation | in-progress |
 | 2 | Coding standards & tooling | Foundation | planned |
 | 3 | Data model | Foundation | planned |
-| 4 | Design system & UI foundation | Foundation | planned |
+| 4 | Design system & UI foundation | Foundation | in-progress |
 | 5 | Logins & access | Release 1 | planned |
 | 6 | School & term setup | Release 1 | planned |
 | 7 | Classes, subjects & grading rules | Release 1 | planned |
@@ -51,10 +51,16 @@ The core records every release depends on: schools, sections, sessions and terms
 **Done when:** one school's data can never be read by another school; the model supports term results, third term cumulative results, and later student logins and shared learning content without a breaking change.
 - [ ] Design it (spec): `/architect data model`
 
-### 4. Design system & UI foundation · needs a decision
+### 4. Design system & UI foundation · in-progress
 A simple, clear look and base components that work well on a teacher's phone and a staffroom computer.
 **Done when:** `design.md` covers type, colour, spacing, and base components; forms and tables are usable on a small phone screen and by keyboard.
-- [ ] Design it (spec): `/architect design system & UI foundation`
+- [x] Design it (spec): `/architect design system & UI foundation`
+- [x] Build it: `/develop design system & UI foundation`
+  - [x] Tokens, type and thumb-sized base components
+  - [x] Score sheet and red pen, sign in and design previews
+- [ ] Verify it: `/check verify`
+- [ ] Test it: `/test`
+Spec [0002](../specs/0002-design-system/index.md) · rules in [design.md](../design.md) · code in `src/components/`, tokens in `src/app/globals.css`
 
 ## Release 1: Smallest usable report card tool
 
