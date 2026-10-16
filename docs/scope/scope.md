@@ -27,9 +27,10 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 15 | Single student reprint | Release 2 | planned |
 | 16 | Class broadsheet | Release 2 | planned |
 | 17 | Launch readiness | Release 2 | planned |
-| 18 | Third term cumulative & promotion | Release 3 | planned |
-| 19 | Send results on WhatsApp | Release 4 | planned |
-| 20 | Onboard more schools | Release 5 | planned |
+| 21 | Result PIN checker | Release 3 | planned |
+| 18 | Third term cumulative & promotion | Release 4 | planned |
+| 19 | Send results on WhatsApp | Release 5 | planned |
+| 20 | Onboard more schools | Release 6 | planned |
 
 ## Foundations
 
@@ -50,11 +51,11 @@ Capture conventions from the real scaffolded project, then install lint, format,
 The core records every release depends on: schools, sections, sessions and terms, classes, subjects, teachers, students, scores, remarks, ratings. Every record belongs to one school. Students are records now, with room for a login later (for the future learning platform). School subjects and classes map to a shared standard list (for example "General Mathematics" maps to Mathematics, "JSS1 Gold" maps to JSS1) so past questions can link across schools later.
 **Done when:** one school's data can never be read by another school; the model supports term results, third term cumulative results, and later student logins and shared learning content without a breaking change.
 - [x] Design it (spec): `/architect data model`
-- [ ] Build it: `/develop data model`
-  - [ ] Dev database branch, schema and first migration (AC-1, AC-2, AC-11, AC-12)
-  - [ ] Seed data: standard lists and the demo school (AC-9, AC-12)
-  - [ ] School scoped data layer and the score save path (AC-3, AC-4, AC-5, AC-8, AC-10)
-  - [ ] Session results and grade bands, with tests (AC-6, AC-7, all ACs tested)
+- [x] Build it: `/develop data model`
+  - [x] Dev database branch, schema and first migration (AC-1, AC-2, AC-11, AC-12)
+  - [x] Seed data: standard lists and the demo school (AC-9, AC-12)
+  - [x] School scoped data layer and the score save path (AC-3, AC-4, AC-5, AC-8, AC-10)
+  - [x] Session results and grade bands, with tests (AC-6, AC-7, all ACs tested)
 - [ ] Verify it: `/check verify data model`
 - [ ] Test it: `/test data model`
 Spec [0003](../specs/0003-data-model/index.md) · code in `src/db/schema/`, `src/server/data/`
@@ -143,21 +144,30 @@ What must be true before the school pays and uses it: hosting that allows commer
 **Done when:** an error a teacher hits emails our team; the app runs on a plan that allows paid use; the end of term export works; the school has received the privacy notice.
 - [ ] Design it (spec): `/architect launch readiness`
 
-## Release 3: Full school year
+## Release 3: Results online with PINs
+
+Parents check results online from Second Term 2026/2027 (around April 2027). First Term results go out on paper as planned.
+
+### 21. Result PIN checker · needs a decision · full
+Each student gets one PIN per term, printed on a slip the school hands out (for example, only once fees are paid). A parent types the 12 digit PIN on one public result page and sees that child's result for that term, as often as they like, and can download the report card. No admission number or account is needed. PINs are never stored readable, guessing is throttled, results show only once the school releases them, and a lost slip is replaced with a new PIN that kills the old one. The school can see which slips were issued and used.
+**Done when:** a parent with a valid PIN sees exactly one child's released result for one term and nothing else; an unreleased term, a wrong PIN, or a replaced PIN shows a clear message; repeated wrong guesses are slowed down; the school prints PIN slips for a whole class and replaces a lost one.
+- [ ] Design it (spec): `/architect result PIN checker`
+
+## Release 4: Full school year
 
 ### 18. Third term cumulative & promotion · needs a decision
 The third term report card shows first, second, and third term totals, the cumulative average, and the promotion decision (promoted, repeat, on probation). Needed before Third Term results (around July 2027).
 **Done when:** the third term card shows all three terms correctly, including students who joined mid year, and the promotion rule follows the school's setting.
 - [ ] Design it (spec): `/architect third term cumulative & promotion`
 
-## Release 4: Results straight to parents (Phase 2)
+## Release 5: Results straight to parents (Phase 2)
 
 ### 19. Send results on WhatsApp · needs a decision · full
 Next to each student, the teacher taps "Send on WhatsApp"; their own WhatsApp opens with the parent's number and a message with a private link to that child's result. Free, no business registration needed. Links use the school's short name in the address (for example `/gracehigh`).
 **Done when:** only parents who gave consent are offered; the link opens only that child's result and cannot be guessed; the school can switch a link off; each student shows as sent once tapped.
 - [ ] Design it (spec): `/architect send results on whatsapp`
 
-## Release 5: Grow to more schools
+## Release 6: Grow to more schools
 
 ### 20. Onboard more schools · needs a decision
 Our team adds and switches between schools from one admin area, so a new school can be onboarded in about an hour with no new code.
@@ -168,7 +178,7 @@ Our team adds and switches between schools from one admin area, so a new school 
 Out of scope for now, kept so the plan stays honest.
 - **Automatic WhatsApp sending**: one button sends every parent the PDF with read receipts. Needs business registration (CAC) first · needs a decision
 - **School fees**: fee lists, payments, receipts, who owes what · needs a decision · full weight
-- **Parent portal**: parents sign in to see results and history · needs a decision
+- **Parent portal**: parents sign in to see results and history (the Result PIN checker covers checking one term's result without an account) · needs a decision
 - **Principal approval**: the principal checks and locks results before printing or sending · needs a decision
 - **Schools sign themselves up and pay online** · needs a decision · full weight
 - **Own domain and school subdomains** (for example `gracehigh.ourapp.com`) · needs a decision

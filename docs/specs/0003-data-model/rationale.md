@@ -8,6 +8,8 @@ The forces: the records are personal data about children under the Nigeria Data 
 
 Business rules confirmed with the engineer: the form teacher enters every subject in Release 1 (subject teachers later); the score split is configurable per section; the report card shows passport photo, gender, date of birth and house; students can change class between terms; seniors pick electives; parent records are shared between siblings; every score change is logged; a grade scale change affects only that session; only teachers and our team sign in during Release 1; students who leave are kept and marked as left.
 
+Update (2026-10-16, after the first build): some Nigerian schools have no admission numbers, so requiring one would block their enrolment and Excel import. Every student now gets a VoxLMS student number (the school's code plus four digits) from a per school counter, and the school's own admission number is optional. The planned result PIN checker identifies students by PIN, so it needs neither.
+
 ## Options considered
 
 ### Option 1: Separate database (or schema) per school

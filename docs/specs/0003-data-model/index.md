@@ -1,7 +1,7 @@
 # 0003. Core data model for schools, terms, students and scores
 
 **Date**: 2026-10-16
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
@@ -30,7 +30,7 @@ Reasoning and options: see [rationale.md](rationale.md).
 - **AC-8**: A class offers subjects per session, each compulsory or elective. Electives are registered per student, per session, per subject (so they survive a change of arm). A score for an elective can only be saved for a student registered for that subject in that session.
 - **AC-9**: A parent record can link to several children, a child has at most two parents and at most one primary parent, two parents may share one phone number, phone numbers are stored in one international format (`+234…`), and WhatsApp consent is stored with the date it was given.
 - **AC-10**: Students are never deleted. A student who leaves mid term has that term's enrolment marked withdrawn with a date: they drop out of current class lists and position counts from then on, and their earlier terms still appear on past reports. The student's own status (active, left, graduated) is a summary for lists.
-- **AC-11**: A school's short name is 3 to 30 lowercase letters or digits, unique, and not a reserved word (the list lives in app code). Admission numbers are unique within a school; staff phone numbers (normalised) are unique within a school; at most one term per school is current.
+- **AC-11**: A school's short name is 3 to 30 lowercase letters or digits, unique, and not a reserved word (the list lives in app code). Every school has a code of 2 to 6 capital letters (e.g. `GHS`). Every student gets a VoxLMS student number automatically, unique within the school, never reused, shown as the school code plus four digits (`GHS-0123`). The school's own admission number is optional (some schools have none); when present it is unique within the school. Staff phone numbers (normalised) are unique within a school; at most one term per school is current.
 - **AC-12**: The standard levels (Creche to SS 3) and standard subjects are seeded on every branch. Made up demo school data can be seeded on development branches only; the seed refuses to run against the production branch.
 
 ## Decision
@@ -65,7 +65,7 @@ School setup (all carry `school_id`):
 
 | Table | Fields | Rules and links |
 |---|---|---|
-| `school` | `slug` text, `name`, `address`, `motto` (null), `phone` (null), `email` (null), `plan` enum default `basic`, `logo_asset_id` (null) | `slug` unique, `check (slug ~ '^[a-z0-9]{3,30}$')`; reserved words refused in app code. Its own `id` is the `school_id`. Logo link `(id, logo_asset_id)` to `asset (school_id, id)`; insert the school first, the logo after |
+| `school` | `slug` text, `code` text (e.g. `GHS`), `name`, `address`, `motto` (null), `phone` (null), `email` (null), `plan` enum default `basic`, `logo_asset_id` (null), `student_no_counter` int default 0 | `slug` unique, `check (slug ~ '^[a-z0-9]{3,30}$')`; reserved words refused in app code; `check (code ~ '^[A-Z]{2,6}$')`. Student numbers are handed out by atomically increasing `student_no_counter`. Its own `id` is the `school_id`. Logo link `(id, logo_asset_id)` to `asset (school_id, id)`; insert the school first, the logo after |
 | `asset` | `kind` enum, `mime_type` text, `bytes` bytea, `width` int, `height` int | Images only, shrunk in the browser first (spec 0001). Every link to an asset is composite `(school_id, asset_id)` |
 | `section` | `stage` enum, `name` text, `teacher_title` text (e.g. "Form master"), `head_title` text (e.g. "Principal"), `head_name` (null), `head_signature_asset_id` (null) | One section is exactly one stage. `unique (school_id, name)`; also `unique (school_id, id, stage)` |
 | `academic_session` | `name` text (e.g. "2026/2027"), `starts_on` date, `ends_on` date | `unique (school_id, name)` |
@@ -82,7 +82,7 @@ Students and results (all carry `school_id`):
 
 | Table | Fields | Rules and links |
 |---|---|---|
-| `student` | `admission_no` text, `surname`, `other_names`, `gender` enum, `date_of_birth` date (null), `house` text (null), `photo_asset_id` (null), `status` enum default `active`, `left_on` date (null) | `unique (school_id, admission_no)`; `check ((status = 'active') = (left_on is null))` |
+| `student` | `student_no` int (VoxLMS number), `admission_no` text (null: the school's own number, if it has one), `surname`, `other_names`, `gender` enum, `date_of_birth` date (null), `house` text (null), `photo_asset_id` (null), `status` enum default `active`, `left_on` date (null) | `unique (school_id, student_no)`; `unique (school_id, admission_no)` (several students may have none); `check ((status = 'active') = (left_on is null))` |
 | `guardian` | `full_name`, `phone` text (normalised, not unique: parents may share a phone), `whatsapp_consent` boolean default false, `consent_recorded_at` timestamptz (null) | `check (not whatsapp_consent or consent_recorded_at is not null)`; index `(school_id, phone)` for finding siblings' parents |
 | `student_guardian` | `student_id`, `guardian_id`, `relationship` enum, `is_primary` boolean | Primary key `(student_id, guardian_id)`; partial unique index `(student_id) where is_primary`; at most two per student (data layer check, locking the student row) |
 | `enrolment` | `student_id`, `term_id`, `session_id`, `class_id`, `section_id`, `withdrawn_on` date (null) | `unique (student_id, term_id)`; `(school_id, term_id, session_id)` links to `term`; `(school_id, class_id, section_id)` links to `class`; `unique (school_id, id, class_id, session_id, section_id)`; index `(term_id, class_id)` |
@@ -111,6 +111,7 @@ Relationships (all one to many unless stated): school to every school table; sec
 | `saveScores(ctx, { termId, classSubjectId, saveId, changes })` | `saveId` uuid; changes: `{ studentId, componentKey, expected: string or null, value: string or null }[]` | changed count, `updatedAt` | school context with a user | `InvalidScore`, `ScoreAboveMaximum { componentLabel, max, value }`, `NotTakingSubject`, `Conflict { studentIds }`, `NotFound`; any error saves nothing |
 | `getStudentSessionResults(ctx, { studentId, sessionId })` | student, session | per term: enrolment (or absent), scores by subject and part | school context | `NotFound` |
 | `setCurrentTerm(ctx, { termId })` | term | none | our team (checked by the logins spec) | `NotFound` |
+| `allocateStudentNumbers(ctx, { count })` | how many new students | the next `count` student numbers, never reused | school context, inside the caller's transaction | none |
 | `readSnapshot(ctx, fn)` | a function of reads | its result | school context | none |
 
 `SchoolContext` is `{ schoolId, userId, db }`. `db` defaults to the shared client; tests pass a transaction that is rolled back. Until logins exist (#5), only seeds and tests build a context. `readSnapshot` runs its reads in one read only, repeatable read transaction, so a class PDF and its broadsheet see exactly the same scores (#12, #16).
@@ -151,18 +152,21 @@ Relationships (all one to many unless stated): school to every school table; sec
 - Edge: changing a grade band in 2026/2027 leaves 2025/2026 grades unchanged; verifies **AC-7**.
 - Edge: a senior student moved from SS 1 Science A to Science B keeps their elective and can be scored in it; an unregistered student cannot; verifies **AC-8**.
 - Edge: two parents sharing one phone are both saved; a third parent for the same child is refused; verifies **AC-9**.
+- Edge: students added without an admission number each get the next student number (`GHS-0023`, `GHS-0024`); two students without admission numbers are both accepted; a repeated admission number is refused; verifies **AC-11**.
 
 ## Build plan
 
 Skateboard: the smallest whole that a real save can run through first (tables, seed, one scoped save path), then the remaining helpers.
 
-1. Create a `dev` Neon branch from `production`, point `.env.local` at it (keep production values out of the local file), and record the branch in `.neon`; satisfies **AC-12**.
-2. Write the schema in `src/db/schema/` (shared lists, school setup, people, results) with enums, composite foreign keys, unique and check constraints, and the partial unique indexes; generate the first migration and apply it to the dev branch; satisfies **AC-1**, **AC-2**, **AC-11**.
-3. Phone normaliser and seed script: standard levels and subjects (every branch); demo school (Grace High School: three sections, 2026/2027 with three terms, JSS 2 Gold and SS 1 Science, subjects, score split, grade bands, a teacher, 16 students with parents, two siblings sharing a parent) guarded by `ALLOW_DEMO_SEED` and the branch check; satisfies **AC-12**, **AC-9**.
-4. Data access layer foundation: `SchoolContext`, typed errors, `readSnapshot`, `getCurrentTerm`, `listClassStudents`; satisfies **AC-3**, **AC-10**.
-5. Score path: `getScoreSheet` and `saveScores` exactly as described above; satisfies **AC-4**, **AC-5**, **AC-8**.
-6. `getStudentSessionResults` and per session grade band lookup; satisfies **AC-6**, **AC-7**.
-7. Install Vitest and write the tests above against the dev branch, each inside a transaction that is rolled back; satisfies **AC-2** to **AC-11**.
+1. [x] Create a `dev` Neon branch from `production`, point `.env.local` at it (keep production values out of the local file), and record the branch in `.neon`; satisfies **AC-12**.
+2. [x] Write the schema in `src/db/schema/` (shared lists, school setup, people, results) with enums, composite foreign keys, unique and check constraints, and the partial unique indexes; generate the first migration and apply it to the dev branch; satisfies **AC-1**, **AC-2**, **AC-11**.
+3. [x] Phone normaliser and seed script: standard levels and subjects (every branch); demo school (Grace High School: three sections, 2026/2027 with three terms, JSS 2 Gold and SS 1 Science, subjects, score split, grade bands, a teacher, 16 students with parents, two siblings sharing a parent) guarded by `ALLOW_DEMO_SEED` and the branch check; satisfies **AC-12**, **AC-9**.
+4. [x] Data access layer foundation: `SchoolContext`, typed errors, `readSnapshot`, `getCurrentTerm`, `listClassStudents`; satisfies **AC-3**, **AC-10**.
+5. [x] Score path: `getScoreSheet` and `saveScores` exactly as described above; satisfies **AC-4**, **AC-5**, **AC-8**.
+6. [x] `getStudentSessionResults` and per session grade band lookup; satisfies **AC-6**, **AC-7**.
+7. [x] Install Vitest and write the tests above against the dev branch, each inside a transaction that is rolled back; satisfies **AC-2** to **AC-11**.
+
+8. [x] Student numbers and optional admission numbers (update, 2026-10-16): add `school.code`, `school.student_no_counter` and `student.student_no` (backfilled for existing rows), make `admission_no` optional, add `allocateStudentNumbers` to the data layer and use it in the seed, and test it; satisfies **AC-11**.
 
 ## Consequences
 
