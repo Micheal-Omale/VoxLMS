@@ -8,17 +8,14 @@ import { slugProblem } from "@/lib/reserved-slugs";
 
 import type { Actor, Executor, SchoolContext } from "./context";
 import { NotFound } from "./errors";
+import { assertTeam, type FormResult } from "./team";
+
+export type { FormResult } from "./team";
 
 // School and term setup (spec 0005). Our team only; every write stays inside
 // the school in the context (spec 0003).
 
 type Stage = "primary" | "junior_secondary" | "senior_secondary";
-export type FormResult<T = object> = ({ ok: true } & T) | { ok: false; field: string; error: string };
-
-function assertTeam(actor: Actor) {
-  if (actor.kind === "system") return;
-  if (actor.kind !== "admin" || actor.readOnly) throw new NotFound("School");
-}
 
 const trimOrNull = (value: string | null | undefined) => {
   const t = value?.trim();

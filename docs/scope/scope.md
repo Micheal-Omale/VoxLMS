@@ -16,11 +16,12 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 4 | Design system & UI foundation | Foundation | in-progress |
 | 5 | Logins & access | Release 1 | in-progress |
 | 6 | School & term setup | Release 1 | in-progress |
-| 7 | Classes, subjects & grading rules | Release 1 | planned |
+| 7 | Classes, subjects & grading rules | Release 1 | in-progress |
 | 8 | Enrol teachers & students | Release 1 | planned |
 | 9 | Score entry | Release 1 | planned |
 | 10 | Results computation | Release 1 | planned |
 | 11 | Remarks & attendance | Release 1 | planned |
+| 22 | Section heads as dated records | Release 1 | in-progress |
 | 12 | Report card PDF | Release 1 | planned |
 | 13 | Excel import | Release 2 | planned |
 | 14 | Behaviour & skills ratings | Release 2 | planned |
@@ -100,10 +101,18 @@ Our team sets up a school: name, logo, address, motto, principal's signature or 
 - [ ] Test it: `/test school & term setup`
 Spec [0005](../specs/0005-school-term-setup/index.md) · code in `src/app/admin/schools/`, `src/server/data/setup.ts`, `src/app/school-logo/`
 
-### 7. Classes, subjects & grading rules · needs a decision
-Our team adds classes and arms, the subjects each class offers (and each senior student's electives), the score split (for example CA1 20, CA2 20, Exam 60), and the grade scale for each section (JSS A to F, SS A1 to F9).
+### 7. Classes, subjects & grading rules · in-progress
+Our team adds classes and arms, the subjects each class offers (marking which are electives; each senior student's electives are registered in #8), the score split (for example CA1 20, CA2 20, Exam 60), and the grade scale for each section (JSS A to F, SS A1 to F9).
 **Done when:** a class has its subjects and rules set, and changing the grade scale changes the grades shown without anyone entering scores again.
-- [ ] Design it (spec): `/architect classes, subjects & grading rules`
+- [x] Design it (spec): `/architect classes, subjects & grading rules`
+- [x] Build it: `/develop classes, subjects & grading rules`
+  - [x] Subject order migration, and the data rules for subjects, classes, offers, splits and scales (AC-1 to AC-8, AC-11)
+  - [x] Subjects page and Classes page with each level's subject offer (AC-1 to AC-4, AC-8)
+  - [x] Score split and grades page (AC-5, AC-6, AC-7)
+  - [x] Session switcher, copy from last session, checklist items, and tests (AC-9, AC-10, all ACs tested)
+- [x] Verify it: `/check verify classes, subjects & grading rules`
+- [ ] Test it: `/test classes, subjects & grading rules`
+Spec [0006](../specs/0006-classes-subjects-grading/index.md) · code in `src/server/data/curriculum.ts`, `src/server/data/grading.ts`, `src/app/admin/schools/[schoolId]/subjects/`, `classes/`, `grading/`
 
 ### 8. Enrol teachers & students · needs a decision
 Our team adds teachers and students one at a time, assigns each class its form master or class teacher, and records each parent's name, phone number, and WhatsApp consent (collected now for Release 4).
@@ -124,6 +133,18 @@ The system works out each subject's total and grade, each subject's position, th
 The teacher adds a comment per student, the principal's comment, times school opened, and times present.
 **Done when:** remarks and attendance save per student per term and appear on the report card.
 - [ ] Build it: `/develop remarks & attendance`
+
+### 22. Section heads as dated records · in-progress
+Each section's head (principal or head teacher: title, name, signature) becomes a dated record that changes only through "Change principal", so reprinted report cards from an old term keep the head who signed that term. Comes before #12, which prints the signature. From spec 0007.
+**Done when:** a principal change from a chosen term leaves earlier terms with the old head and signature, honest mistakes can be fixed, and the latest change can be undone.
+- [x] Design it (spec): `/architect section heads as dated records`
+- [ ] Build it: `/develop section heads as dated records`
+  - [ ] Head records migration and the data rules: who signs a term, add, fix, change, undo, term date guard (AC-2 to AC-6, AC-8 to AC-12)
+  - [ ] Sections page head panel with Fix, Change principal, Undo and the password prompt (AC-1 to AC-7)
+  - [ ] Tests for every rule, the migration and access (AC-1 to AC-12)
+- [ ] Verify it: `/check verify section heads as dated records`
+- [ ] Test it: `/test section heads as dated records`
+Spec [0007](../specs/0007-section-head-history/index.md)
 
 ### 12. Report card PDF · needs a decision
 The standard Nigerian report card for the whole class as one file, ready to print. Shows the school logo and signature on the school logo plan, or our branding ("Powered by") on the basic plan.

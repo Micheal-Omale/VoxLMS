@@ -9,6 +9,7 @@ import { formatNigerianPhone } from "@/lib/phone";
 import { termLabel } from "@/lib/term-label";
 import { type LoginStatus, listStaffWithLogins } from "@/server/auth/admin-data";
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
+import { getCurriculumProgress } from "@/server/data/curriculum";
 import { getSchoolSetup } from "@/server/data/setup";
 
 import { StaffActions } from "./staff-actions";
@@ -35,7 +36,7 @@ export default function SchoolTeamPage({ params }: { params: Params }) {
 async function SchoolOverview({ params }: { params: Params }) {
   const { schoolId } = await params;
   const { ctx, viewer } = await requireTeamSchoolContext(schoolId);
-  const [setup, people] = await Promise.all([getSchoolSetup(ctx), listStaffWithLogins(schoolId)]);
+  const [setup, progress, people] = await Promise.all([getSchoolSetup(ctx), getCurriculumProgress(ctx), listStaffWithLogins(schoolId)]);
   const { school, sections, sessions, currentTerm, checklist } = setup;
   const currentSession = sessions.find((s) => s.id === currentTerm?.sessionId);
   const missingSignatures = sections.filter((s) => !s.headSignatureAssetId || !s.headName).length;
@@ -70,6 +71,39 @@ async function SchoolOverview({ params }: { params: Params }) {
       href: `${base}/terms`,
       done: checklist.terms,
       status: currentTerm && currentSession ? `${termLabel(currentTerm.number, currentSession.name)} is current` : "No current term yet",
+    },
+    // Spec 0006, AC-10.
+    {
+      title: "Subjects",
+      href: `${base}/subjects`,
+      done: progress.subjects.done,
+      status: progress.subjects.count === 0 ? "None added yet" : `${progress.subjects.count} ${progress.subjects.count === 1 ? "subject" : "subjects"}, in the school’s order`,
+    },
+    {
+      title: "Classes",
+      href: `${base}/classes`,
+      done: progress.classes.done,
+      status:
+        progress.classes.count === 0
+          ? "None added yet"
+          : !progress.session
+            ? `${progress.classes.count} classes. Add a session to give them subjects.`
+            : progress.classes.withoutSubjects > 0
+              ? `${progress.classes.count} classes. ${progress.classes.withoutSubjects} still ${progress.classes.withoutSubjects === 1 ? "needs" : "need"} subjects for ${progress.session.name}.`
+              : `${progress.classes.count} ${progress.classes.count === 1 ? "class" : "classes"}, each with its subjects for ${progress.session.name}`,
+    },
+    {
+      title: "Score split and grades",
+      href: `${base}/grading`,
+      done: progress.grading.done,
+      status:
+        progress.grading.sections === 0
+          ? "Add sections first"
+          : !progress.session
+            ? "Add a session first"
+            : progress.grading.done
+              ? `Set for every section in ${progress.session.name}`
+              : `${progress.grading.unready.join(", ")} still ${progress.grading.unready.length === 1 ? "needs" : "need"} a split adding to 100 and a grade scale`,
     },
   ];
   const remaining = items.filter((i) => !i.done).length;

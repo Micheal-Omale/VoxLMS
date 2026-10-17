@@ -64,7 +64,7 @@ export async function listHomeClasses(ctx: SchoolContext, input: { termId: strin
       .from(classSubject)
       .innerJoin(schoolSubject, eq(schoolSubject.id, classSubject.subjectId))
       .where(and(eq(classSubject.schoolId, ctx.schoolId), eq(classSubject.sessionId, input.sessionId), inArray(classSubject.classId, ids)))
-      .orderBy(asc(classSubject.sortOrder)),
+      .orderBy(asc(schoolSubject.sortOrder), asc(schoolSubject.name)),
     ctx.db
       .select({ classId: enrolment.classId, n: sql<number>`count(*)::int` })
       .from(enrolment)

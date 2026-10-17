@@ -115,7 +115,9 @@ export async function getStudentSessionResults(ctx: SchoolContext, input: { stud
                 enrolments.map((e) => e.enrolmentId),
               ),
             ),
-          );
+          )
+          // The school's one subject order (spec 0006, AC-2); the map below keeps it.
+          .orderBy(asc(schoolSubject.sortOrder), asc(schoolSubject.name));
 
   return terms.map((t) => {
     const e = enrolments.find((row) => row.termId === t.id);
@@ -130,7 +132,7 @@ export async function getStudentSessionResults(ctx: SchoolContext, input: { stud
       termId: t.id,
       number: t.number,
       enrolment: { id: e.enrolmentId, classId: e.classId, sectionId: e.sectionId, className: e.className, withdrawnOn: e.withdrawnOn },
-      subjects: [...subjects.values()].sort((a, b) => a.name.localeCompare(b.name)),
+      subjects: [...subjects.values()],
     };
   });
 }

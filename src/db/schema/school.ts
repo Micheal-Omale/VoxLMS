@@ -187,11 +187,16 @@ export const schoolSubject = pgTable(
     name: text("name").notNull(),
     shortName: text("short_name").notNull(),
     standardSubjectId: uuid("standard_subject_id").references(() => standardSubject.id),
+    /** The school's one subject order (spec 0006): every list of a class's subjects follows it. */
+    sortOrder: integer("sort_order").notNull().default(0),
+    /** Switched off subjects stay on past records but leave the pickers. */
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: createdAt(),
   },
   (t) => [
     unique("subject_school_name_key").on(t.schoolId, t.name),
     unique("subject_school_id_key").on(t.schoolId, t.id),
+    unique("subject_school_short_name_key").on(t.schoolId, t.shortName),
   ],
 );
 
@@ -272,6 +277,7 @@ export const classSubject = pgTable(
     sectionId: uuid("section_id").notNull(),
     subjectId: uuid("subject_id").notNull(),
     isElective: boolean("is_elective").notNull().default(false),
+    /** No longer read (spec 0006): lists follow school_subject.sort_order. Kept because migrations are add only. */
     sortOrder: integer("sort_order").notNull().default(0),
     createdAt: createdAt(),
   },

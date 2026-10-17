@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { eq, inArray, sql } from "drizzle-orm";
 
+import { classSortOrder } from "@/lib/class-name";
 import { normaliseNigerianPhone } from "@/lib/phone";
 
 import * as t from "../schema";
@@ -89,6 +90,8 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
     if (!found) throw new Error(`Standard level ${code} missing; seed the standard lists first`);
     return found.id;
   };
+  const classOrder = (code: string, armPosition: number) =>
+    classSortOrder(levels.find((l) => l.code === code)!.sortOrder, armPosition);
   const standardSubjects = await tx.select().from(t.standardSubject);
   const standardSubjectId = (name: string) => standardSubjects.find((s) => s.name === name)?.id ?? null;
 
@@ -150,15 +153,16 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
   const [jss2Gold, ss1Science] = await tx
     .insert(t.schoolClass)
     .values([
-      { schoolId, sectionId: junior.id, stage: "junior_secondary", standardLevelId: level("JSS2"), arm: "Gold", name: "JSS 2 Gold", sortOrder: 20 },
-      { schoolId, sectionId: senior.id, stage: "senior_secondary", standardLevelId: level("SS1"), arm: "Science", name: "SS 1 Science", sortOrder: 40 },
-      { schoolId, sectionId: primary.id, stage: "primary", standardLevelId: level("PRY4"), arm: null, name: "Primary 4", sortOrder: 4 },
+      { schoolId, sectionId: junior.id, stage: "junior_secondary", standardLevelId: level("JSS2"), arm: "Gold", name: "JSS 2 Gold", sortOrder: classOrder("JSS2", 1) },
+      { schoolId, sectionId: senior.id, stage: "senior_secondary", standardLevelId: level("SS1"), arm: "Science", name: "SS 1 Science", sortOrder: classOrder("SS1", 1) },
+      { schoolId, sectionId: primary.id, stage: "primary", standardLevelId: level("PRY4"), arm: null, name: "Primary 4", sortOrder: classOrder("PRY4", 0) },
     ])
     .returning();
 
+  // In the school's subject order (spec 0006): English first, then Mathematics.
   const subjectRows: [string, string, string][] = [
-    ["Mathematics", "MTH", "Mathematics"],
     ["English Studies", "ENG", "English Language"],
+    ["Mathematics", "MTH", "Mathematics"],
     ["Basic Science", "BSC", "Basic Science"],
     ["Basic Technology", "BTE", "Basic Technology"],
     ["Social Studies", "SOS", "Social Studies"],
@@ -174,7 +178,7 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
   ];
   const subjects = await tx
     .insert(t.schoolSubject)
-    .values(subjectRows.map(([name, shortName, std]) => ({ schoolId, name, shortName, standardSubjectId: standardSubjectId(std) })))
+    .values(subjectRows.map(([name, shortName, std], i) => ({ schoolId, name, shortName, standardSubjectId: standardSubjectId(std), sortOrder: i + 1 })))
     .returning();
   const subjectId = (name: string) => subjects.find((s) => s.name === name)!.id;
 

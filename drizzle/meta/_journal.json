@@ -36,6 +36,20 @@
       "when": 1792182399395,
       "tag": "0004_school_show_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792191367481,
+      "tag": "0005_subject_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792191570130,
+      "tag": "0006_class_order",
+      "breakpoints": true
     }
   ]
 }

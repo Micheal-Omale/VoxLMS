@@ -68,8 +68,13 @@ async function loadClassSubject(db: Executor, schoolId: string, termId: string, 
 
 type Offer = Awaited<ReturnType<typeof loadClassSubject>>;
 
-async function loadComponents(db: Executor, schoolId: string, offer: Offer) {
-  return db
+/**
+ * The section's parts for the subject's session. A save locks them for share
+ * while it checks maximums, so a split change can't lower a maximum mid-save
+ * (spec 0006, AC-7); one of the two waits for the other.
+ */
+async function loadComponents(db: Executor, schoolId: string, offer: Offer, lock = false) {
+  const query = db
     .select({
       id: assessmentComponent.id,
       key: assessmentComponent.key,
@@ -85,6 +90,7 @@ async function loadComponents(db: Executor, schoolId: string, offer: Offer) {
       ),
     )
     .orderBy(asc(assessmentComponent.sortOrder));
+  return lock ? query.for("share") : query;
 }
 
 /** Enrolments (not withdrawn) of students taking this subject in this term. */
@@ -224,7 +230,7 @@ export async function saveScores(
     // 2. Resolve parts through the class's section and the subject's session.
     const offer = await loadClassSubject(tx, ctx.schoolId, input.termId, input.classSubjectId);
     await assertClassAccess({ ...ctx, db: tx }, { classId: offer.classId, sessionId: offer.sessionId });
-    const components = await loadComponents(tx, ctx.schoolId, offer);
+    const components = await loadComponents(tx, ctx.schoolId, offer, true);
     const byKey = new Map(components.map((c) => [c.key, c]));
     for (const change of input.changes) {
       const part = byKey.get(change.componentKey);
