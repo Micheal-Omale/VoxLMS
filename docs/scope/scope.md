@@ -18,7 +18,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 6 | School & term setup | Release 1 | in-progress |
 | 7 | Classes, subjects & grading rules | Release 1 | in-progress |
 | 8 | Enrol teachers & students | Release 1 | in-progress |
-| 9 | Score entry | Release 1 | planned |
+| 9 | Score entry | Release 1 | in-progress |
 | 10 | Results computation | Release 1 | planned |
 | 11 | Remarks & attendance | Release 1 | planned |
 | 22 | School principal and section heads | Release 1 | done |
@@ -128,10 +128,19 @@ Our team adds teachers and students one at a time, assigns each class its form m
 - [ ] Test it: `/test enrol teachers & students`
 Spec [0008](../specs/0008-enrol-teachers-students/index.md) · code in `src/server/data/staff.ts`, `src/server/data/students.ts`, `src/server/data/guardians.ts`, `src/app/admin/schools/[schoolId]/staff/`, `students/`, `src/app/[school]/classes/`
 
-### 9. Score entry · needs a decision
+### 9. Score entry · in-progress
 The teacher enters CA1, CA2, and Exam scores for every student in every subject of their class, quickly, on a phone or computer.
 **Done when:** a teacher can fill a whole class's scores without losing work; a score above its maximum is refused with a clear message; saved scores survive a page refresh.
-- [ ] Design it (spec): `/architect score entry`
+- [x] Design it (spec): `/architect score entry`
+- [ ] Build it: `/develop score entry`
+  - [ ] Data: closed term refusal, progress, sheet additions and history (AC-1, AC-6, AC-11 to AC-13)
+  - [ ] Subject list and score sheet on real data with save, 1 to 5 parts and empty states (AC-1, AC-3 to AC-5, AC-13, AC-14)
+  - [ ] Protect typed work: term picker and read only sheets, stale drafts, conflicts, out of date reloads (AC-2, AC-5 to AC-9)
+  - [ ] Paste a column, score history, and our team's Scores page (AC-10 to AC-12)
+  - [ ] Component tests and visual check at 390px and 1280px (all ACs)
+- [ ] Verify it: `/check verify score entry`
+- [ ] Test it: `/test score entry`
+Spec [0009](../specs/0009-score-entry/index.md)
 
 ### 10. Results computation · needs a decision · full
 The system works out each subject's total and grade, each subject's position, the class average, highest and lowest per subject, each student's overall total and average, and position in class (for example 5th of 32).
@@ -226,6 +235,7 @@ Out of scope for now, kept so the plan stays honest.
 - **School fees**: fee lists, payments, receipts, who owes what · needs a decision · full weight
 - **Parent portal**: parents sign in to see results and history (the Result PIN checker covers checking one term's result without an account) · needs a decision
 - **Principal approval**: the principal checks and locks results before printing or sending · needs a decision
+- **Subject teachers**: each subject of a class gets its own teacher who enters its scores; the sheet and save stay the same, only access changes (from spec 0009) · needs a decision
 - **Re-admit a student who left in an earlier term**: a "Left the school" list with "Re-admit into class" (from spec 0008) · needs a decision
 - **Principal history**: keep who signed which term, so reprints of old terms keep the earlier principal after a change (from spec 0007) · needs a decision
 - **Schools sign themselves up and pay online** · needs a decision · full weight
