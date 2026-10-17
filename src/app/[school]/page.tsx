@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import type { Metadata } from "next";
 import { BookOpenIcon, UsersIcon } from "lucide-react";
 
@@ -75,10 +76,15 @@ async function Home({ params }: { params: Params }) {
           {classes.map((c) => (
             <li
               key={c.id}
-              className="ruled-sheet flex flex-col gap-4 rounded-xl border border-rule py-5 pr-5 pl-[calc(var(--margin-x)+1rem)] [--margin-x:1.25rem]"
+              className="ruled-sheet flex flex-col gap-4 rounded-xl border border-rule py-5 pr-5 pl-[calc(var(--margin-x)+1rem)] transition-colors [--margin-x:1.25rem] has-[a:hover]:border-input has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-primary"
             >
               <div className="flex items-baseline justify-between gap-3">
-                <h2 className="type-title">{c.name}</h2>
+                <h2 className="type-title">
+                  {/* The whole card opens the class list (spec 0008, AC-14). */}
+                  <Link href={`/${slug}/classes/${c.id}`} className="outline-none after:absolute after:inset-0 after:rounded-xl">
+                    {c.name}
+                  </Link>
+                </h2>
                 <span className="flex items-center gap-1.5 type-caption text-muted-foreground">
                   <UsersIcon aria-hidden="true" className="size-3.5" />
                   <span className="type-figure">{c.students}</span> students

@@ -81,6 +81,7 @@ export async function changePhoneAction(userId: string, newPhone: string): Promi
   if (!fresh) return { ok: false, needPassword: true };
   const result = await changePhone(deps(), { userId, newPhone, actorUserId: viewer.userId, meta: await requestMeta() });
   if (result.ok) return { ok: true };
+  if (result.reason === "staff") return { ok: false, error: `${result.staffName} at ${result.schoolName} already uses that number. Nothing was changed.` };
   return { ok: false, error: result.reason === "taken" ? "Another login already uses that number." : "That isn't a Nigerian mobile number." };
 }
 

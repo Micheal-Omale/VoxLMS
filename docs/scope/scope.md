@@ -118,15 +118,15 @@ Spec [0006](../specs/0006-classes-subjects-grading/index.md) · code in `src/ser
 Our team adds teachers and students one at a time, assigns each class its form master or class teacher, and records each parent's name and phone number. WhatsApp consent waits for #19 (spec 0008); parents check results by PIN first (#21).
 **Done when:** our team can enrol a class of students and its teacher, and that teacher sees exactly that class after signing in.
 - [x] Design it (spec): `/architect enrol teachers & students`
-- [ ] Build it: `/develop enrol teachers & students`
-  - [ ] Admission number migration, and the Staff page with login in the same step (AC-1, AC-2, AC-3, AC-6, AC-16)
-  - [ ] Students page, class list with form master and quick add, and the teacher's class page (AC-4, AC-5, AC-6, AC-14)
-  - [ ] Student panel: details, photo, parents with sibling linking (AC-7, AC-8)
-  - [ ] Move, left and remove; electives grid; carry forward on term switch (AC-9 to AC-13)
-  - [ ] Checklist items and tests (AC-15, all ACs tested)
+- [x] Build it: `/develop enrol teachers & students`
+  - [x] Admission number migration, and the Staff page with login in the same step (AC-1, AC-2, AC-3, AC-6, AC-16)
+  - [x] Students page, class list with form master and quick add, and the teacher's class page (AC-4, AC-5, AC-6, AC-14)
+  - [x] Student panel: details, photo, parents with sibling linking (AC-7, AC-8)
+  - [x] Move, left and remove; electives grid; carry forward on term switch (AC-9 to AC-13)
+  - [x] Checklist items and tests (AC-15, all ACs tested)
 - [ ] Verify it: `/check verify enrol teachers & students`
 - [ ] Test it: `/test enrol teachers & students`
-Spec [0008](../specs/0008-enrol-teachers-students/index.md)
+Spec [0008](../specs/0008-enrol-teachers-students/index.md) · code in `src/server/data/staff.ts`, `src/server/data/students.ts`, `src/server/data/guardians.ts`, `src/app/admin/schools/[schoolId]/staff/`, `students/`, `src/app/[school]/classes/`
 
 ### 9. Score entry · needs a decision
 The teacher enters CA1, CA2, and Exam scores for every student in every subject of their class, quickly, on a phone or computer.

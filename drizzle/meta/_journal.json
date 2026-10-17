@@ -57,6 +57,13 @@
       "when": 1792247345881,
       "tag": "0007_school_principal",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792259193320,
+      "tag": "0008_admission_number_norm",
+      "breakpoints": true
     }
   ]
 }

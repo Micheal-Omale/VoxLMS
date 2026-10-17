@@ -286,7 +286,7 @@ describe("AC-9: parents", () => {
       expect(first[0].phone).toBe(second[0].phone);
 
       const [aunt] = await tx.insert(t.guardian).values({ schoolId: a.schoolId, fullName: "Aunt Eze", phone: "+2348099990000" }).returning();
-      await expect(linkGuardian(ctx, { studentId: eze.id, guardianId: aunt.id, relationship: "guardian", isPrimary: false })).rejects.toBeInstanceOf(TooManyGuardians);
+      await expect(linkGuardian(ctx, { studentId: eze.id, guardianId: aunt.id, relationship: "guardian" })).rejects.toBeInstanceOf(TooManyGuardians);
 
       const mother = parents.find((p) => !p.isPrimary)!;
       expect(await refusedBy(tx, (sp) => sp.update(t.studentGuardian).set({ isPrimary: true }).where(and(eq(t.studentGuardian.studentId, eze.id), eq(t.studentGuardian.guardianId, mother.guardianId))))).toBe("student_guardian_one_primary");
@@ -337,7 +337,7 @@ describe("AC-11: uniqueness rules", () => {
       expect(await refusedBy(tx, (sp) => sp.insert(t.school).values({ slug: "testschoola", code: "TSA", name: "x", address: "x" }))).toBe("school_slug_unique");
       expect(await refusedBy(tx, (sp) => sp.insert(t.school).values({ slug: "newschool", code: "ghs", name: "x", address: "x" }))).toBe("school_code_format");
       const okon = a.student("Okon Emem");
-      expect(await refusedBy(tx, (sp) => sp.insert(t.student).values({ schoolId: a.schoolId, studentNo: 9001, admissionNo: okon.admissionNo, surname: "Dup", otherNames: "Dup", gender: "male" }))).toBe("student_school_admission_key");
+      expect(await refusedBy(tx, (sp) => sp.insert(t.student).values({ schoolId: a.schoolId, studentNo: 9001, admissionNo: okon.admissionNo, surname: "Dup", otherNames: "Dup", gender: "male" }))).toBe("student_school_admission_norm_key");
       // The same admission number is fine in another school.
       expect(await refusedBy(tx, (sp) => sp.insert(t.student).values({ schoolId: b.schoolId, studentNo: 9001, admissionNo: "TEST/ONLY/IN/B", surname: "Fine", otherNames: "Fine", gender: "male" }))).toBeNull();
       expect(await refusedBy(tx, (sp) => sp.insert(t.student).values({ schoolId: a.schoolId, studentNo: okon.studentNo, surname: "Dup", otherNames: "Dup", gender: "male" }))).toBe("student_school_number_key");

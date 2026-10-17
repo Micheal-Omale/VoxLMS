@@ -327,6 +327,40 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number 
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
+/**
+ * Reads a JPEG's size from its frame header (spec 0008, AC-7); null if the
+ * bytes aren't a JPEG. Walks the marker segments up to the first SOF marker.
+ */
+export function readJpegSize(bytes: Uint8Array): { width: number; height: number } | null {
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  let i = 2;
+  while (i + 8 < bytes.length) {
+    if (bytes[i] !== 0xff) return null;
+    const marker = bytes[i + 1];
+    // Fill bytes, and markers that carry no length.
+    if (marker === 0xff) {
+      i += 1;
+      continue;
+    }
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd8)) {
+      i += 2;
+      continue;
+    }
+    // End of image, or a scan, before any frame header.
+    if (marker === 0xd9 || marker === 0xda) return null;
+    const length = (bytes[i + 2] << 8) | bytes[i + 3];
+    if (length < 2) return null;
+    // SOF0 to SOF15, except DHT (C4), JPG (C8) and DAC (CC), which share the range.
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const height = (bytes[i + 5] << 8) | bytes[i + 6];
+      const width = (bytes[i + 7] << 8) | bytes[i + 8];
+      return width > 0 && height > 0 ? { width, height } : null;
+    }
+    i += 2 + length;
+  }
+  return null;
+}
+
 /** Whose image an upload is: the school's logo, the principal's signature, or one section head's signature (spec 0007). */
 export type ImageOwner = { kind: "logo" } | { kind: "signature"; signer: "principal" } | { kind: "signature"; signer: "section"; sectionId: string };
 

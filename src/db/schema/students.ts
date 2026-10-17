@@ -48,8 +48,11 @@ export const student = pgTable(
   },
   (t) => [
     unique("student_school_number_key").on(t.schoolId, t.studentNo),
-    // Postgres allows many nulls here, so schools without admission numbers are fine.
-    unique("student_school_admission_key").on(t.schoolId, t.admissionNo),
+    // Spec 0008, AC-6: unique ignoring case and spaces, the same way the app compares
+    // (normaliseAdmissionNo). Schools without admission numbers leave it null.
+    uniqueIndex("student_school_admission_norm_key")
+      .on(t.schoolId, sql`upper(regexp_replace(${t.admissionNo}, '\\s', '', 'g'))`)
+      .where(sql`${t.admissionNo} is not null`),
     unique("student_school_id_key").on(t.schoolId, t.id),
     check("student_left_on_matches_status", sql`(${t.status} = 'active') = (${t.leftOn} is null)`),
     foreignKey({

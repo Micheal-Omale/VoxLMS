@@ -2,28 +2,21 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { ChevronLeftIcon, ChevronRightIcon, CircleCheckIcon, CircleIcon } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatNigerianPhone } from "@/lib/phone";
 import { termLabel } from "@/lib/term-label";
-import { type LoginStatus, listStaffWithLogins } from "@/server/auth/admin-data";
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
 import { getCurriculumProgress } from "@/server/data/curriculum";
 import { getSchoolSetup } from "@/server/data/setup";
-
-import { StaffActions } from "./staff-actions";
+import { getEnrolmentProgress } from "@/server/data/students";
 
 type Params = Promise<{ schoolId: string }>;
 
-const STATUS: Record<LoginStatus, { label: string; className: string }> = {
-  none: { label: "No login", className: "border-border bg-transparent text-muted-foreground" },
-  waiting: { label: "Waiting for password", className: "bg-warning-wash text-warning" },
-  active: { label: "Active", className: "bg-success-wash text-success" },
-  off: { label: "Switched off", className: "bg-destructive-wash text-destructive" },
-};
-
-const lagos = new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short", hour12: true, timeZone: "Africa/Lagos" });
+/** "JSS 1 Blue", "JSS 1 Blue and SS 1 Arts", "A, B, C and 24 more": at most three names, so the line stays readable. */
+function listNames(names: string[]) {
+  if (names.length > 3) return `${names.slice(0, 3).join(", ")} and ${names.length - 3} more`;
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
 
 export default function SchoolTeamPage({ params }: { params: Params }) {
   return (
@@ -35,8 +28,8 @@ export default function SchoolTeamPage({ params }: { params: Params }) {
 
 async function SchoolOverview({ params }: { params: Params }) {
   const { schoolId } = await params;
-  const { ctx, viewer } = await requireTeamSchoolContext(schoolId);
-  const [setup, progress, people] = await Promise.all([getSchoolSetup(ctx), getCurriculumProgress(ctx), listStaffWithLogins(schoolId)]);
+  const { ctx } = await requireTeamSchoolContext(schoolId);
+  const [setup, progress, enrolled] = await Promise.all([getSchoolSetup(ctx), getCurriculumProgress(ctx), getEnrolmentProgress(ctx)]);
   const { school, sections, sessions, currentTerm, checklist } = setup;
   const currentSession = sessions.find((s) => s.id === currentTerm?.sessionId);
   // Spec 0007, AC-7: only sections with their own head need a signature here.
@@ -107,6 +100,31 @@ async function SchoolOverview({ params }: { params: Params }) {
               ? `Set for every section in ${progress.session.name}`
               : `${progress.grading.unready.join(", ")} still ${progress.grading.unready.length === 1 ? "needs" : "need"} a split adding to 100 and a grade scale`,
     },
+    // Spec 0008, AC-15.
+    {
+      title: "Staff",
+      href: `${base}/staff`,
+      done: enrolled.staff.done,
+      status: !enrolled.currentTerm
+        ? "Set the current term first"
+        : enrolled.classes === 0
+          ? "Add classes first"
+          : enrolled.staff.done
+            ? `Every class has its form master for ${enrolled.currentTerm.sessionName}`
+            : `${listNames(enrolled.staff.missing)} still ${enrolled.staff.missing.length === 1 ? "needs" : "need"} a form master`,
+    },
+    {
+      title: "Students",
+      href: `${base}/students`,
+      done: enrolled.students.done,
+      status: !enrolled.currentTerm
+        ? "Set the current term first"
+        : enrolled.classes === 0
+          ? "Add classes first"
+          : enrolled.students.done
+            ? "Every class has its students this term"
+            : `${listNames(enrolled.students.missing)} ${enrolled.students.missing.length === 1 ? "has" : "have"} no students yet`,
+    },
   ];
   const remaining = items.filter((i) => !i.done).length;
 
@@ -147,49 +165,6 @@ async function SchoolOverview({ params }: { params: Params }) {
         </ol>
       </section>
 
-      <section aria-labelledby="staff-heading" className="flex flex-col gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h2 id="staff-heading" className="type-heading">
-            Staff logins
-          </h2>
-          <p className="type-caption text-muted-foreground sm:text-sm">Teachers choose their own passwords through a setup link.</p>
-        </div>
-        {people && people.staff.length > 0 ? (
-          <ul className="flex flex-col overflow-hidden rounded-xl border border-rule bg-card">
-            {people.staff.map((m) => (
-              <li key={m.staffId} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-rule px-4 py-4 last:border-b-0">
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span className="font-bold">{[m.title, m.fullName].filter(Boolean).join(" ")}</span>
-                  <span className="type-caption text-muted-foreground">
-                    <span className="type-figure">{formatNigerianPhone(m.phone)}</span>
-                    {m.status === "left" ? ", has left the school" : ""}
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-0.5">
-                  <Badge className={STATUS[m.loginStatus].className}>{STATUS[m.loginStatus].label}</Badge>
-                  <span className="type-caption text-muted-foreground">
-                    {m.lastSignInAt ? `Last signed in ${lagos.format(m.lastSignInAt)}` : m.userId ? "Never signed in" : ""}
-                  </span>
-                </div>
-                <StaffActions
-                  schoolId={school.id}
-                  staffId={m.staffId}
-                  userId={m.userId}
-                  name={[m.title, m.fullName].filter(Boolean).join(" ")}
-                  loginStatus={m.loginStatus}
-                  isSelf={m.userId === viewer.userId}
-                  isTeam={m.isTeam}
-                  active={m.status === "active"}
-                />
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="rounded-xl border border-dashed border-input bg-card p-5 text-muted-foreground">
-            No staff yet. Teachers are added by the next setup feature (enrol teachers and students).
-          </p>
-        )}
-      </section>
     </>
   );
 }

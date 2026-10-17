@@ -1,7 +1,7 @@
 # 0008. Enrol teachers and students
 
 **Date**: 2026-10-17
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
@@ -136,13 +136,13 @@ The duplicate name warning (AC-6) and the sibling offer (AC-8) come back from th
 
 Skateboard: first the thinnest whole that lets a teacher see their class (teacher, form master, quick add), then the tools for fixing records, then electives and the next term.
 
-1. Migration `0008_admission_number_norm` (`alter table student drop constraint student_school_admission_key`, then add the normalised unique index) and the schema change in `src/db/schema/students.ts`; a JPEG check (start marker, size from the frame header) beside `readPngSize`; satisfies **AC-6**, **AC-7**.
-2. Staff page: `addTeacher` (phone checks and same person confirm before any insert, then login and setup link), `saveTeacher`, `setStaffLeft`; make `changePhone` (spec 0004) check every affected school for a clash first and run in one transaction; move the Staff logins block and `StaffActions` from the overview; satisfies **AC-1**, **AC-2**, **AC-3**, **AC-16**.
-3. Students page and class list: classes by section, `setFormTeacher` picker, `getClassRoster`, quick add with `addStudent` (number, enrolment, duplicate warning); teacher class page `/{school}/classes/[classId]` linked from the home card; satisfies **AC-4**, **AC-5**, **AC-6**, **AC-14**, **AC-16**.
-4. Student panel: details with `saveStudent`, photo crop and upload (route `kind=student_photo`), parents with `findGuardiansByPhone`, `linkGuardian` refactored to run in a caller's transaction, `addGuardian`, `saveGuardian`, `unlinkGuardian`, `makePrimaryGuardian`; "no parent yet" mark; satisfies **AC-7**, **AC-8**.
-5. Fixes: `moveStudent`, `setStudentLeft` with the "Left this term" group and Undo, `removeStudent`; satisfies **AC-10**, **AC-11**, **AC-12**.
-6. Electives grid with `saveClassElectives`; carry forward inside `setCurrentTerm` and the count on the Terms page; satisfies **AC-9**, **AC-13**.
-7. Checklist items for Staff and Students on the overview; tests for every scenario above (database tests in `inRollback`, component tests for the quick add row and panel forms); satisfies **AC-15** and **AC-1** to **AC-16**.
+1. [x] Migration `0008_admission_number_norm` (`alter table student drop constraint student_school_admission_key`, then add the normalised unique index) and the schema change in `src/db/schema/students.ts`; a JPEG check (start marker, size from the frame header) beside `readPngSize`; satisfies **AC-6**, **AC-7**.
+2. [x] Staff page: `addTeacher` (phone checks and same person confirm before any insert, then login and setup link), `saveTeacher`, `setStaffLeft`; make `changePhone` (spec 0004) check every affected school for a clash first and run in one transaction; move the Staff logins block and `StaffActions` from the overview; satisfies **AC-1**, **AC-2**, **AC-3**, **AC-16**.
+3. [x] Students page and class list: classes by section, `setFormTeacher` picker, `getClassRoster`, quick add with `addStudent` (number, enrolment, duplicate warning); teacher class page `/{school}/classes/[classId]` linked from the home card; satisfies **AC-4**, **AC-5**, **AC-6**, **AC-14**, **AC-16**.
+4. [x] Student panel: details with `saveStudent`, photo crop and upload (route `kind=student_photo`), parents with `findGuardiansByPhone`, `linkGuardian` refactored to run in a caller's transaction, `addGuardian`, `saveGuardian`, `unlinkGuardian`, `makePrimaryGuardian`; "no parent yet" mark; satisfies **AC-7**, **AC-8**.
+5. [x] Fixes: `moveStudent`, `setStudentLeft` with the "Left this term" group and Undo, `removeStudent`; satisfies **AC-10**, **AC-11**, **AC-12**.
+6. [x] Electives grid with `saveClassElectives`; carry forward inside `setCurrentTerm` and the count on the Terms page; satisfies **AC-9**, **AC-13**.
+7. [x] Checklist items for Staff and Students on the overview; tests for every scenario above (database tests in `inRollback`, component tests for the quick add row and panel forms); satisfies **AC-15** and **AC-1** to **AC-16**.
 
 ## Consequences
 

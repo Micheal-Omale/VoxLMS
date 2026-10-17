@@ -7,6 +7,7 @@ import { classSubject, enrolment, schoolClass, schoolSubject, student, term } fr
 import { assertClassAccess, listMyClasses } from "./access";
 import type { SchoolContext } from "./context";
 import { NotFound } from "./errors";
+import { getCurrentTerm } from "./terms";
 
 /**
  * A class's students for a term, surname first. Withdrawn enrolments are left
@@ -25,6 +26,7 @@ export async function listClassStudents(ctx: SchoolContext, input: { termId: str
     .select({
       enrolmentId: enrolment.id,
       studentId: student.id,
+      studentNo: student.studentNo,
       admissionNo: student.admissionNo,
       surname: student.surname,
       otherNames: student.otherNames,
@@ -41,6 +43,22 @@ export async function listClassStudents(ctx: SchoolContext, input: { termId: str
       ),
     )
     .orderBy(asc(student.surname), asc(student.otherNames));
+}
+
+/**
+ * A class and its open students in the current term, for the class page
+ * (spec 0008, AC-14). A teacher reaches only their own form classes this
+ * session; any other class is "not found".
+ */
+export async function getClassPage(ctx: SchoolContext, input: { classId: string }) {
+  const current = await getCurrentTerm(ctx);
+  const [cls] = await ctx.db
+    .select({ id: schoolClass.id, name: schoolClass.name })
+    .from(schoolClass)
+    .where(and(eq(schoolClass.schoolId, ctx.schoolId), eq(schoolClass.id, input.classId)));
+  if (!cls) throw new NotFound("Class");
+  const students = await listClassStudents(ctx, { termId: current.term.id, classId: cls.id });
+  return { cls, term: current.term, session: current.session, students };
 }
 
 /**

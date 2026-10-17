@@ -116,7 +116,12 @@ export async function saveSessionAction(schoolId: string, sessionId: string | nu
 
 export async function setCurrentTermAction(schoolId: string, termId: string): Promise<SetupFormState> {
   const { ctx } = await requireTeamSchoolContext(schoolId);
-  await setCurrentTerm(ctx, { termId });
+  const { carried, classOff } = await setCurrentTerm(ctx, { termId });
   refresh();
-  return { ok: true, message: "Current term switched." };
+  // Spec 0008, AC-13: say what came forward, and what didn't because its class is switched off.
+  const parts = [
+    carried > 0 ? `${carried} ${carried === 1 ? "student was" : "students were"} carried forward into the same classes.` : null,
+    classOff > 0 ? `${classOff} ${classOff === 1 ? "student wasn’t" : "students weren’t"}, because their class is switched off.` : null,
+  ].filter(Boolean);
+  return { ok: true, message: parts.join(" ") };
 }

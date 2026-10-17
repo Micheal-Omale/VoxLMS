@@ -38,8 +38,8 @@ export function MakeCurrentButton({ schoolId, termId, label }: { schoolId: strin
           <AlertDialogAction
             onClick={() =>
               start(async () => {
-                await setCurrentTermAction(schoolId, termId);
-                toast.add({ title: `${label} is now the current term`, type: "success" });
+                const result = await setCurrentTermAction(schoolId, termId);
+                toast.add({ title: `${label} is now the current term`, description: result?.message || undefined, type: "success", timeout: result?.message ? 10000 : undefined });
                 router.refresh();
               })
             }

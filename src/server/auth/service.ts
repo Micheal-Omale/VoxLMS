@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 
 import { school, session, staff, user, verification } from "@/db/schema";
 import { formatNigerianPhone, normaliseNigerianPhone } from "@/lib/phone";
@@ -238,25 +238,44 @@ export async function signOutEverywhere(deps: AuthDeps, input: { userId: string;
   await logAuthEvent(deps.db, { kind: "signed_out_everywhere", userId: input.userId, actorUserId: input.actorUserId, meta: input.meta });
 }
 
-export type ChangePhoneResult = { ok: true } | { ok: false; reason: "invalid" | "taken" };
+export type ChangePhoneResult =
+  | { ok: true }
+  | { ok: false; reason: "invalid" | "taken" }
+  | { ok: false; reason: "staff"; staffName: string; schoolName: string };
 
-/** Moves a login to a new phone number: everything open is ended (AC-9). */
+/**
+ * Moves a login to a new phone number, in every school it is staff of, and
+ * ends everything open (spec 0004, AC-9). Refused before anything changes when
+ * other staff in any of those schools already have the number (spec 0008, AC-2).
+ */
 export async function changePhone(
   deps: AuthDeps,
   input: { userId: string; newPhone: string; actorUserId: string; meta?: RequestMeta },
 ): Promise<ChangePhoneResult> {
   const digits = phoneDigits(input.newPhone);
   if (!digits) return { ok: false, reason: "invalid" };
-  const [taken] = await deps.db.select({ id: user.id }).from(user).where(eq(user.username, digits));
-  if (taken && taken.id !== input.userId) return { ok: false, reason: "taken" };
-  await deps.db
-    .update(user)
-    .set({ username: digits, displayUsername: formatNigerianPhone(`+${digits}`) })
-    .where(eq(user.id, input.userId));
-  await deps.db.update(staff).set({ phone: `+${digits}` }).where(eq(staff.userId, input.userId));
-  await endEverything(deps.db, input.userId);
-  await logAuthEvent(deps.db, { kind: "phone_changed", userId: input.userId, actorUserId: input.actorUserId, meta: input.meta });
-  return { ok: true };
+  const phone = `+${digits}`;
+  return deps.db.transaction(async (tx): Promise<ChangePhoneResult> => {
+    const [taken] = await tx.select({ id: user.id }).from(user).where(eq(user.username, digits));
+    if (taken && taken.id !== input.userId) return { ok: false, reason: "taken" };
+    const schoolIds = (await tx.select({ schoolId: staff.schoolId }).from(staff).where(eq(staff.userId, input.userId))).map((r) => r.schoolId);
+    if (schoolIds.length > 0) {
+      const [clash] = await tx
+        .select({ staffName: staff.fullName, schoolName: school.name })
+        .from(staff)
+        .innerJoin(school, eq(school.id, staff.schoolId))
+        .where(and(inArray(staff.schoolId, schoolIds), eq(staff.phone, phone), or(isNull(staff.userId), ne(staff.userId, input.userId))));
+      if (clash) return { ok: false, reason: "staff", ...clash };
+    }
+    await tx
+      .update(user)
+      .set({ username: digits, displayUsername: formatNigerianPhone(phone) })
+      .where(eq(user.id, input.userId));
+    await tx.update(staff).set({ phone }).where(eq(staff.userId, input.userId));
+    await endEverything(tx, input.userId);
+    await logAuthEvent(tx, { kind: "phone_changed", userId: input.userId, actorUserId: input.actorUserId, meta: input.meta });
+    return { ok: true };
+  });
 }
 
 /** Switches a login off (or back on). Off ends every session and link (AC-9). */
