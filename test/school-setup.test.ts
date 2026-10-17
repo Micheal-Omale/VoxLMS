@@ -7,9 +7,12 @@ import { NotFound, schoolContext } from "@/server/data";
 import type { Actor, Executor } from "@/server/data/context";
 import {
   createSchool,
+  getSchoolSetup,
+  getSignerForSection,
   readLogo,
   removeSection,
   saveImage,
+  savePrincipal,
   saveSection,
   saveSession,
   termsProblem,
@@ -18,12 +21,13 @@ import {
 
 import { type Fixture, inRollback, pool, setUpSchools } from "./db";
 
-// Spec 0005 acceptance criteria. Every test rolls back.
+// Spec 0005 acceptance criteria, then spec 0007's. Every test rolls back.
 
 let a: Fixture;
+let b: Fixture;
 
 beforeAll(async () => {
-  ({ a } = await setUpSchools());
+  ({ a, b } = await setUpSchools());
 });
 
 afterAll(async () => {
@@ -101,14 +105,14 @@ describe("AC-5: sections", () => {
     await inRollback(async (tx) => {
       const ctx = teamCtx(tx);
       const junior = a.section("junior_secondary");
-      const saved = await saveSection(ctx, { stage: "junior_secondary", teacherTitle: "Form teacher", headTitle: "Principal", headName: "Dr Ade Bello" });
+      const saved = await saveSection(ctx, { stage: "junior_secondary", teacherTitle: "Form teacher", hasOwnHead: false });
       expect(saved).toEqual({ ok: true, sectionId: junior.id });
       expect(await removeSection(ctx, { sectionId: junior.id })).toMatchObject({ ok: false, error: expect.stringMatching(/has classes/) });
       // The primary section in the test school has one class (Primary 4); a fresh school's empty section can go.
       const created = await createSchool(tx, team, details);
       if (!created.ok) throw new Error("no school");
       const otherCtx = schoolContext({ schoolId: created.schoolId, userId: "team", db: tx, actor: team });
-      const section = await saveSection(otherCtx, { stage: "primary", teacherTitle: "Class teacher", headTitle: "Head teacher" });
+      const section = await saveSection(otherCtx, { stage: "primary", teacherTitle: "Class teacher", hasOwnHead: false });
       if (!section.ok) throw new Error("no section");
       expect(await removeSection(otherCtx, { sectionId: section.sectionId })).toEqual({ ok: true });
       // School A's context can't touch the new school's section.
@@ -167,12 +171,170 @@ describe("AC-4: images", () => {
   it("never serves a signature as a logo", async () => {
     await inRollback(async (tx) => {
       const ctx = teamCtx(tx);
-      const junior = a.section("junior_secondary");
-      const signature = await saveImage(ctx, { kind: "signature", sectionId: junior.id, bytes: pngBytes(300, 120) });
+      const primary = a.section("primary");
+      const signature = await saveImage(ctx, { kind: "signature", signer: "section", sectionId: primary.id, bytes: pngBytes(300, 120) });
       if (!signature.ok) throw new Error("upload failed");
       expect(await readLogo(tx, signature.assetId)).toBeNull();
-      const [row] = await tx.select().from(t.section).where(and(eq(t.section.id, junior.id)));
+      const [row] = await tx.select().from(t.section).where(and(eq(t.section.id, primary.id)));
       expect(row.headSignatureAssetId).toBe(signature.assetId);
+    });
+  });
+});
+
+// Spec 0007: the school's principal and a section's optional own head.
+
+const signatureOf = (ctx: ReturnType<typeof teamCtx>, sectionId: string) =>
+  saveImage(ctx, { kind: "signature", signer: "section", sectionId, bytes: pngBytes(300, 120) });
+const assetExists = async (tx: Executor, id: string) => (await tx.select().from(t.asset).where(eq(t.asset.id, id))).length === 1;
+
+describe("Spec 0007, AC-6 and AC-10: who signs a section's report cards", () => {
+  it("is Primary's own head, and the principal for both secondary sections", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      expect(await getSignerForSection(ctx, a.section("primary").id)).toEqual({ title: "Head teacher", name: "Mrs Grace Oyelaran", signatureAssetId: null, from: "section" });
+      for (const stage of ["junior_secondary", "senior_secondary"]) {
+        expect(await getSignerForSection(ctx, a.section(stage).id)).toEqual({ title: "Principal", name: "Mr Samuel Adeleke", signatureAssetId: null, from: "principal" });
+      }
+    });
+  });
+
+  it("is null while the principal has no name, and not found for another school's section", async () => {
+    await inRollback(async (tx) => {
+      const created = await createSchool(tx, team, details);
+      if (!created.ok) throw new Error("no school");
+      const otherCtx = schoolContext({ schoolId: created.schoolId, userId: "team", db: tx, actor: team });
+      const section = await saveSection(otherCtx, { stage: "junior_secondary", teacherTitle: "Form master", hasOwnHead: false });
+      if (!section.ok) throw new Error("no section");
+      expect(await getSignerForSection(otherCtx, section.sectionId)).toBeNull();
+      await expect(getSignerForSection(teamCtx(tx), section.sectionId)).rejects.toBeInstanceOf(NotFound);
+      await expect(getSignerForSection(teamCtx(tx), b.section("primary").id)).rejects.toBeInstanceOf(NotFound);
+    });
+  });
+});
+
+describe("Spec 0007, AC-1, AC-2 and AC-8: fixing the principal", () => {
+  it("changes the signer of every section without its own head, and a new signature deletes the old one", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      expect(await savePrincipal(ctx, { title: "Proprietress", name: "Mrs Funke Alade" })).toEqual({ ok: true });
+      expect(await getSignerForSection(ctx, a.section("junior_secondary").id)).toMatchObject({ title: "Proprietress", name: "Mrs Funke Alade", from: "principal" });
+      expect(await getSignerForSection(ctx, a.section("primary").id)).toMatchObject({ name: "Mrs Grace Oyelaran", from: "section" });
+
+      const first = await saveImage(ctx, { kind: "signature", signer: "principal", bytes: pngBytes(300, 120) });
+      const second = await saveImage(ctx, { kind: "signature", signer: "principal", bytes: pngBytes(320, 120) });
+      if (!first.ok || !second.ok) throw new Error("upload failed");
+      expect(await assetExists(tx, first.assetId)).toBe(false);
+      expect(await getSignerForSection(ctx, a.section("senior_secondary").id)).toMatchObject({ signatureAssetId: second.assetId });
+      // A principal's signature is private, like a head's.
+      expect(await readLogo(tx, second.assetId)).toBeNull();
+    });
+  });
+
+  it("refuses a title or name of the wrong length", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      expect(await savePrincipal(ctx, { title: "Principal", name: "Ab" })).toMatchObject({ ok: false, field: "principalName" });
+      expect(await savePrincipal(ctx, { title: "P".repeat(41), name: "Mr Samuel Adeleke" })).toMatchObject({ ok: false, field: "principalTitle" });
+      expect(await savePrincipal(ctx, { title: "P", name: "Mr Samuel Adeleke" })).toMatchObject({ ok: false, field: "principalTitle" });
+      expect(await savePrincipal(ctx, { title: "Head of school", name: "M".repeat(80) })).toEqual({ ok: true });
+    });
+  });
+});
+
+describe("Spec 0007, AC-3, AC-4 and AC-8: a section's own head", () => {
+  it("switching off clears the head and deletes its signature, so the principal signs", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      const primary = a.section("primary");
+      const signature = await signatureOf(ctx, primary.id);
+      if (!signature.ok) throw new Error("upload failed");
+
+      expect(await saveSection(ctx, { stage: "primary", teacherTitle: "Class teacher", hasOwnHead: false })).toEqual({ ok: true, sectionId: primary.id });
+      const [row] = await tx.select().from(t.section).where(eq(t.section.id, primary.id));
+      expect(row).toMatchObject({ headName: null, headSignatureAssetId: null, headTitle: "Head teacher" });
+      expect(await assetExists(tx, signature.assetId)).toBe(false);
+      expect(await getSignerForSection(ctx, primary.id)).toMatchObject({ name: "Mr Samuel Adeleke", from: "principal" });
+
+      // Back on, it needs a title and name; the signature is uploaded again.
+      const on = { stage: "primary" as const, teacherTitle: "Class teacher", hasOwnHead: true };
+      expect(await saveSection(ctx, { ...on, headTitle: "Head teacher", headName: "" })).toMatchObject({ ok: false, field: "headName" });
+      expect(await saveSection(ctx, { ...on, headTitle: "H".repeat(41), headName: "Mrs Grace Oyelaran" })).toMatchObject({ ok: false, field: "headTitle" });
+      expect(await saveSection(ctx, { ...on, headTitle: "Head mistress", headName: "Mrs Grace Oyelaran" })).toMatchObject({ ok: true });
+      expect(await getSignerForSection(ctx, primary.id)).toEqual({ title: "Head mistress", name: "Mrs Grace Oyelaran", signatureAssetId: null, from: "section" });
+    });
+  });
+
+  it("fixing the head keeps its signature, and a new signature deletes the old one", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      const primary = a.section("primary");
+      const first = await signatureOf(ctx, primary.id);
+      const second = await signatureOf(ctx, primary.id);
+      if (!first.ok || !second.ok) throw new Error("upload failed");
+      expect(await assetExists(tx, first.assetId)).toBe(false);
+      await saveSection(ctx, { stage: "primary", teacherTitle: "Class teacher", hasOwnHead: true, headTitle: "Head teacher", headName: "Mrs Grace Oyelaran Bello" });
+      expect(await getSignerForSection(ctx, primary.id)).toMatchObject({ name: "Mrs Grace Oyelaran Bello", signatureAssetId: second.assetId });
+    });
+  });
+
+  it("refuses a signature for a section without its own head", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      const junior = a.section("junior_secondary");
+      expect(await signatureOf(ctx, junior.id)).toMatchObject({ ok: false, field: "file", error: expect.stringMatching(/no head of its own/) });
+      const [row] = await tx.select().from(t.section).where(eq(t.section.id, junior.id));
+      expect(row.headSignatureAssetId).toBeNull();
+    });
+  });
+
+  it("removing a section with its own head deletes its signature", async () => {
+    await inRollback(async (tx) => {
+      const created = await createSchool(tx, team, details);
+      if (!created.ok) throw new Error("no school");
+      const otherCtx = schoolContext({ schoolId: created.schoolId, userId: "team", db: tx, actor: team });
+      const section = await saveSection(otherCtx, { stage: "primary", teacherTitle: "Class teacher", hasOwnHead: true, headTitle: "Head teacher", headName: "Mr Tunde Bakare" });
+      if (!section.ok) throw new Error("no section");
+      const signature = await signatureOf(otherCtx, section.sectionId);
+      if (!signature.ok) throw new Error("upload failed");
+      expect(await removeSection(otherCtx, { sectionId: section.sectionId })).toEqual({ ok: true });
+      expect(await assetExists(tx, signature.assetId)).toBe(false);
+    });
+  });
+});
+
+describe("Spec 0007, AC-7: the setup checklist", () => {
+  it("needs the principal's signature for Details, and a signature only from sections with their own head", async () => {
+    await inRollback(async (tx) => {
+      const ctx = teamCtx(tx);
+      expect((await getSchoolSetup(ctx)).checklist).toMatchObject({ details: false, sections: false });
+
+      expect(await saveImage(ctx, { kind: "signature", signer: "principal", bytes: pngBytes(300, 120) })).toMatchObject({ ok: true });
+      expect(await signatureOf(ctx, a.section("primary").id)).toMatchObject({ ok: true });
+      expect((await getSchoolSetup(ctx)).checklist).toMatchObject({ details: true, sections: true });
+
+      // With no own head anywhere, Sections needs nothing more.
+      await saveSection(ctx, { stage: "primary", teacherTitle: "Class teacher", hasOwnHead: false });
+      expect((await getSchoolSetup(ctx)).checklist.sections).toBe(true);
+    });
+  });
+});
+
+describe("Spec 0007, AC-9: our team only", () => {
+  it("gives a teacher, or our team viewing as someone, not found for every action", async () => {
+    await inRollback(async (tx) => {
+      const actors: Actor[] = [
+        { kind: "teacher", staffId: "x", readOnly: false },
+        { kind: "admin", readOnly: true },
+      ];
+      for (const actor of actors) {
+        const ctx = schoolContext({ schoolId: a.schoolId, userId: "t", db: tx, actor });
+        await expect(savePrincipal(ctx, { title: "Principal", name: "Mr Samuel Adeleke" })).rejects.toBeInstanceOf(NotFound);
+        await expect(saveSection(ctx, { stage: "primary", teacherTitle: "Class teacher", hasOwnHead: false })).rejects.toBeInstanceOf(NotFound);
+        await expect(saveImage(ctx, { kind: "signature", signer: "principal", bytes: pngBytes(300, 120) })).rejects.toBeInstanceOf(NotFound);
+        await expect(getSignerForSection(ctx, a.section("primary").id)).rejects.toBeInstanceOf(NotFound);
+      }
+      // A section id from another school is not found, even for our team.
+      await expect(signatureOf(teamCtx(tx), b.section("primary").id)).rejects.toBeInstanceOf(NotFound);
     });
   });
 });

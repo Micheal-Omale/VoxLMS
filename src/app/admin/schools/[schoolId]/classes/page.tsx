@@ -98,16 +98,21 @@ async function Classes({ params, searchParams }: { params: Params; searchParams:
                     {section.name}
                   </h2>
                   <ul className="flex flex-col gap-3">
-                    {sectionLevels.map((level) => (
-                      <LevelCard
-                        key={level.id}
-                        schoolId={school.id}
-                        session={session ? { id: session.id, name: session.name } : null}
-                        level={{ id: level.id, name: level.name }}
-                        classes={classes.filter((c) => c.levelId === level.id)}
-                        subjects={subjects}
-                      />
-                    ))}
+                    {sectionLevels.map((level, i) => {
+                      // The level before, within this section only: Primary 6 never feeds JSS 1.
+                      const before = sectionLevels[i - 1];
+                      return (
+                        <LevelCard
+                          key={level.id}
+                          schoolId={school.id}
+                          session={session ? { id: session.id, name: session.name } : null}
+                          level={{ id: level.id, name: level.name }}
+                          classes={classes.filter((c) => c.levelId === level.id)}
+                          previous={before ? { name: before.name, classes: classes.filter((c) => c.levelId === before.id) } : null}
+                          subjects={subjects}
+                        />
+                      );
+                    })}
                   </ul>
                 </section>
               );

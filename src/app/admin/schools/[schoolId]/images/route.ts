@@ -1,9 +1,10 @@
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
-import { MAX_IMAGE_BYTES, saveImage } from "@/server/data/setup";
+import { NotFound } from "@/server/data";
+import { type ImageOwner, MAX_IMAGE_BYTES, saveImage } from "@/server/data/setup";
 
-// Uploads a logo or a section head's signature (spec 0005, AC-4). The browser
-// has already shrunk the image and re-drawn it as a PNG, which also strips
-// phone photo metadata such as location.
+// Uploads a logo (spec 0005, AC-4), or the principal's or a section head's
+// signature (spec 0007, AC-8). The browser has already shrunk the image and
+// re-drawn it as a PNG, which also strips phone photo metadata such as location.
 export async function POST(request: Request, { params }: { params: Promise<{ schoolId: string }> }) {
   const { schoolId } = await params;
   const { ctx } = await requireTeamSchoolContext(schoolId);
@@ -18,7 +19,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ sch
   if (!(file instanceof File) || (kind !== "logo" && kind !== "signature")) {
     return Response.json({ ok: false, error: "Choose an image to upload." }, { status: 400 });
   }
-  const sectionId = kind === "signature" ? String(form.get("sectionId") ?? "") : null;
-  const result = await saveImage(ctx, { kind, sectionId, bytes: new Uint8Array(await file.arrayBuffer()) });
+  const signer = form.get("signer");
+  if (kind === "signature" && signer !== "principal" && signer !== "section") {
+    return Response.json({ ok: false, error: "Choose whose signature this is." }, { status: 400 });
+  }
+  const owner: ImageOwner =
+    kind === "logo"
+      ? { kind }
+      : signer === "principal"
+        ? { kind, signer }
+        : { kind, signer: "section", sectionId: String(form.get("sectionId") ?? "") };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const result = await saveImage(ctx, { ...owner, bytes }).catch((error: unknown) => {
+    if (error instanceof NotFound) return { ok: false as const, error: "That section is no longer in this school. Refresh the page." };
+    throw error;
+  });
   return Response.json(result, { status: result.ok ? 200 : 400 });
 }

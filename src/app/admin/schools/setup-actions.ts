@@ -10,6 +10,7 @@ import {
   createSchool,
   type FormResult,
   removeSection,
+  savePrincipal,
   saveSection,
   saveSession,
   type SectionInput,
@@ -75,11 +76,19 @@ export async function saveSectionAction(schoolId: string, _previous: SetupFormSt
   const result = await saveSection(ctx, {
     stage,
     teacherTitle: text(form, "teacherTitle"),
+    hasOwnHead: form.get("hasOwnHead") === "on",
     headTitle: text(form, "headTitle"),
     headName: text(form, "headName"),
   });
   if (result.ok) refresh();
   return result.ok ? { ok: true, message: "Section saved." } : { ...asState(result), values: typed(form) };
+}
+
+export async function savePrincipalAction(schoolId: string, _previous: SetupFormState, form: FormData): Promise<SetupFormState> {
+  const { ctx } = await requireTeamSchoolContext(schoolId);
+  const result = await savePrincipal(ctx, { title: text(form, "principalTitle"), name: text(form, "principalName") });
+  if (result.ok) refresh();
+  return result.ok ? { ok: true, message: "Principal saved." } : { ...asState(result), values: typed(form) };
 }
 
 export async function removeSectionAction(schoolId: string, sectionId: string): Promise<SetupFormState> {

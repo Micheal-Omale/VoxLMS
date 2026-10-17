@@ -44,6 +44,10 @@ export const school = pgTable(
     /** Report cards show the attendance box (times opened, present, absent). Off for the pilot. */
     showAttendance: boolean("show_attendance").notNull().default(false),
     logoAssetId: uuid("logo_asset_id"),
+    /** The school's one principal (spec 0007): signs every section's report cards unless the section has its own head. */
+    principalTitle: text("principal_title").notNull().default("Principal"),
+    principalName: text("principal_name"),
+    principalSignatureAssetId: uuid("principal_signature_asset_id"),
     /** Last student number handed out; only ever increases (see allocateStudentNumbers). */
     studentNoCounter: integer("student_no_counter").notNull().default(0),
     createdAt: createdAt(),
@@ -56,6 +60,11 @@ export const school = pgTable(
     foreignKey({
       name: "school_logo_fk",
       columns: [t.id, t.logoAssetId],
+      foreignColumns: [asset.schoolId, asset.id],
+    }),
+    foreignKey({
+      name: "school_principal_signature_fk",
+      columns: [t.id, t.principalSignatureAssetId],
       foreignColumns: [asset.schoolId, asset.id],
     }),
   ],
@@ -86,6 +95,7 @@ export const section = pgTable(
     name: text("name").notNull(),
     teacherTitle: text("teacher_title").notNull(),
     headTitle: text("head_title").notNull(),
+    /** The section's own head (spec 0007). Null means the school's principal signs, and the signature is then null too. */
     headName: text("head_name"),
     headSignatureAssetId: uuid("head_signature_asset_id"),
     createdAt: createdAt(),

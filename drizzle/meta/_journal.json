@@ -50,6 +50,13 @@
       "when": 1792191570130,
       "tag": "0006_class_order",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792247345881,
+      "tag": "0007_school_principal",
+      "breakpoints": true
     }
   ]
 }

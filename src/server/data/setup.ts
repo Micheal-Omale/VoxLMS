@@ -112,9 +112,60 @@ export async function updateSchoolDetails(
   return { ok: true, slugChanged };
 }
 
+// ---------- The principal and section heads (spec 0007) ----------
+
+/** A signer's title and name as printed on report cards (spec 0007, AC-1 and AC-3). */
+function signerProblem(title: string, name: string, fields: { title: string; name: string }, who: string): { ok: false; field: string; error: string } | null {
+  if (title.length < 2 || title.length > 40) return { ok: false, field: fields.title, error: `Type the ${who}'s title in 2 to 40 characters, like ${who === "principal" ? "Principal" : "Head teacher"}.` };
+  if (name.length < 3 || name.length > 80) return { ok: false, field: fields.name, error: `Type the ${who}'s name as printed on report cards, 3 to 80 characters.` };
+  return null;
+}
+
+export async function savePrincipal(ctx: SchoolContext, input: { title: string; name: string }): Promise<FormResult> {
+  assertTeam(ctx.actor);
+  const title = input.title.trim();
+  const name = input.name.trim();
+  const problem = signerProblem(title, name, { title: "principalTitle", name: "principalName" }, "principal");
+  if (problem) return problem;
+  const [saved] = await ctx.db
+    .update(school)
+    .set({ principalTitle: title, principalName: name })
+    .where(eq(school.id, ctx.schoolId))
+    .returning({ id: school.id });
+  if (!saved) throw new NotFound("School");
+  return { ok: true };
+}
+
+export type Signer = { title: string; name: string; signatureAssetId: string | null; from: "section" | "principal" };
+
+/**
+ * Who signs a section's report cards (spec 0007, AC-6): its own head when it
+ * has one, otherwise the school's principal. Null while that signer has no
+ * name yet. Report cards read the signer only through this.
+ */
+export async function getSignerForSection(ctx: SchoolContext, sectionId: string): Promise<Signer | null> {
+  assertTeam(ctx.actor);
+  const [row] = await ctx.db
+    .select({
+      headTitle: section.headTitle,
+      headName: section.headName,
+      headSignature: section.headSignatureAssetId,
+      principalTitle: school.principalTitle,
+      principalName: school.principalName,
+      principalSignature: school.principalSignatureAssetId,
+    })
+    .from(section)
+    .innerJoin(school, eq(school.id, section.schoolId))
+    .where(and(eq(section.schoolId, ctx.schoolId), eq(section.id, sectionId)));
+  if (!row) throw new NotFound("Section");
+  if (row.headName) return { title: row.headTitle, name: row.headName, signatureAssetId: row.headSignature, from: "section" };
+  if (row.principalName) return { title: row.principalTitle, name: row.principalName, signatureAssetId: row.principalSignature, from: "principal" };
+  return null;
+}
+
 // ---------- Sections ----------
 
-export type SectionInput = { stage: Stage; teacherTitle: string; headTitle: string; headName?: string | null };
+export type SectionInput = { stage: Stage; teacherTitle: string; hasOwnHead: boolean; headTitle?: string | null; headName?: string | null };
 
 const STAGE_NAME: Record<Stage, string> = {
   primary: "Primary",
@@ -125,25 +176,40 @@ const STAGE_NAME: Record<Stage, string> = {
 export async function saveSection(ctx: SchoolContext, input: SectionInput): Promise<FormResult<{ sectionId: string }>> {
   assertTeam(ctx.actor);
   if (!input.teacherTitle.trim()) return { ok: false, field: "teacherTitle", error: "Type the teacher's title, like Form master." };
-  if (!input.headTitle.trim()) return { ok: false, field: "headTitle", error: "Type the head's title, like Principal." };
-  const values = {
-    teacherTitle: input.teacherTitle.trim(),
-    headTitle: input.headTitle.trim(),
-    headName: trimOrNull(input.headName),
-  };
-  const [existing] = await ctx.db
-    .select({ id: section.id })
-    .from(section)
-    .where(and(eq(section.schoolId, ctx.schoolId), eq(section.stage, input.stage)));
-  if (existing) {
-    await ctx.db.update(section).set(values).where(eq(section.id, existing.id));
-    return { ok: true, sectionId: existing.id };
+  const headTitle = input.headTitle?.trim() || "Head teacher";
+  const headName = input.headName?.trim() ?? "";
+  if (input.hasOwnHead) {
+    const problem = signerProblem(headTitle, headName, { title: "headTitle", name: "headName" }, "head");
+    if (problem) return problem;
   }
-  const [created] = await ctx.db
-    .insert(section)
-    .values({ schoolId: ctx.schoolId, stage: input.stage, name: STAGE_NAME[input.stage], ...values })
-    .returning({ id: section.id });
-  return { ok: true, sectionId: created.id };
+
+  return ctx.db.transaction(async (tx) => {
+    // Locked, so a signature upload can't land on a head this save is removing.
+    const [existing] = await tx
+      .select({ id: section.id, headTitle: section.headTitle, signature: section.headSignatureAssetId })
+      .from(section)
+      .where(and(eq(section.schoolId, ctx.schoolId), eq(section.stage, input.stage)))
+      .for("update");
+    const values = {
+      teacherTitle: input.teacherTitle.trim(),
+      // Switched off, the title keeps its last value and the name and signature go (AC-4).
+      headTitle: input.hasOwnHead ? headTitle : (existing?.headTitle ?? headTitle),
+      headName: input.hasOwnHead ? headName : null,
+      ...(input.hasOwnHead ? {} : { headSignatureAssetId: null }),
+    };
+    if (existing) {
+      await tx.update(section).set(values).where(eq(section.id, existing.id));
+      if (!input.hasOwnHead && existing.signature) {
+        await tx.delete(asset).where(and(eq(asset.schoolId, ctx.schoolId), eq(asset.id, existing.signature)));
+      }
+      return { ok: true as const, sectionId: existing.id };
+    }
+    const [created] = await tx
+      .insert(section)
+      .values({ schoolId: ctx.schoolId, stage: input.stage, name: STAGE_NAME[input.stage], ...values })
+      .returning({ id: section.id });
+    return { ok: true as const, sectionId: created.id };
+  });
 }
 
 export async function removeSection(ctx: SchoolContext, input: { sectionId: string }): Promise<FormResult> {
@@ -261,10 +327,10 @@ export function readPngSize(bytes: Uint8Array): { width: number; height: number 
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
 
-export async function saveImage(
-  ctx: SchoolContext,
-  input: { kind: "logo" | "signature"; sectionId?: string | null; bytes: Uint8Array },
-): Promise<FormResult<{ assetId: string }>> {
+/** Whose image an upload is: the school's logo, the principal's signature, or one section head's signature (spec 0007). */
+export type ImageOwner = { kind: "logo" } | { kind: "signature"; signer: "principal" } | { kind: "signature"; signer: "section"; sectionId: string };
+
+export async function saveImage(ctx: SchoolContext, input: ImageOwner & { bytes: Uint8Array }): Promise<FormResult<{ assetId: string }>> {
   assertTeam(ctx.actor);
   if (input.bytes.byteLength > MAX_IMAGE_BYTES) return { ok: false, field: "file", error: "That image is too large. Use one under 300 KB." };
   const size = readPngSize(input.bytes);
@@ -272,32 +338,44 @@ export async function saveImage(
     return { ok: false, field: "file", error: "That file isn't an image we can use. Try a JPG or PNG photo." };
   }
 
-  return ctx.db.transaction(async (tx) => {
-    let previous: string | null = null;
-    if (input.kind === "signature") {
+  // The owner's row is locked and read inside the transaction, so two quick
+  // uploads can't orphan an image, and a head switched off meanwhile is refused.
+  return ctx.db.transaction(async (tx): Promise<FormResult<{ assetId: string }>> => {
+    let previous: string | null;
+    if (input.kind === "signature" && input.signer === "section") {
       const [owner] = await tx
-        .select({ id: section.id, current: section.headSignatureAssetId })
+        .select({ id: section.id, name: section.name, headName: section.headName, current: section.headSignatureAssetId })
         .from(section)
-        .where(and(eq(section.schoolId, ctx.schoolId), eq(section.id, input.sectionId ?? "")));
+        .where(and(eq(section.schoolId, ctx.schoolId), eq(section.id, input.sectionId)))
+        .for("update");
       if (!owner) throw new NotFound("Section");
+      if (!owner.headName) {
+        return { ok: false, field: "file", error: `${owner.name} has no head of its own, so the principal signs its report cards. Turn on “Has its own head” and save first.` };
+      }
       previous = owner.current;
     } else {
-      const [owner] = await tx.select({ current: school.logoAssetId }).from(school).where(eq(school.id, ctx.schoolId));
+      const [owner] = await tx
+        .select({ logo: school.logoAssetId, principal: school.principalSignatureAssetId })
+        .from(school)
+        .where(eq(school.id, ctx.schoolId))
+        .for("update");
       if (!owner) throw new NotFound("School");
-      previous = owner.current;
+      previous = input.kind === "logo" ? owner.logo : owner.principal;
     }
 
     const [created] = await tx
       .insert(asset)
       .values({ schoolId: ctx.schoolId, kind: input.kind, mimeType: "image/png", bytes: Buffer.from(input.bytes), ...size })
       .returning({ id: asset.id });
-    if (input.kind === "signature") {
-      await tx.update(section).set({ headSignatureAssetId: created.id }).where(eq(section.id, input.sectionId!));
-    } else {
+    if (input.kind === "logo") {
       await tx.update(school).set({ logoAssetId: created.id }).where(eq(school.id, ctx.schoolId));
+    } else if (input.signer === "principal") {
+      await tx.update(school).set({ principalSignatureAssetId: created.id }).where(eq(school.id, ctx.schoolId));
+    } else {
+      await tx.update(section).set({ headSignatureAssetId: created.id }).where(eq(section.id, input.sectionId));
     }
     if (previous) await tx.delete(asset).where(and(eq(asset.schoolId, ctx.schoolId), eq(asset.id, previous)));
-    return { ok: true as const, assetId: created.id };
+    return { ok: true, assetId: created.id };
   });
 }
 
@@ -338,10 +416,11 @@ export async function getSchoolSetup(ctx: SchoolContext) {
     sections,
     sessions: sessions.map((s) => ({ ...s, terms: terms.filter((t) => t.sessionId === s.id).sort((a, b) => a.number - b.number) })),
     currentTerm: current,
+    // Spec 0007, AC-7: the principal needs a name and signature; only sections with their own head need one.
     checklist: {
-      details: true,
+      details: found.principalName !== null && found.principalSignatureAssetId !== null,
       logo: found.plan === "basic" || found.logoAssetId !== null,
-      sections: sections.length > 0 && sections.every((s) => s.headName && s.headSignatureAssetId),
+      sections: sections.length > 0 && sections.every((s) => !s.headName || s.headSignatureAssetId !== null),
       terms: current !== null,
     },
   };

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, CopyIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -48,17 +48,26 @@ export function LevelCard({
   session,
   level,
   classes,
+  previous,
   subjects,
 }: {
   schoolId: string;
   session: Session;
   level: { id: string; name: string };
   classes: ClassRow[];
+  /** The level before this one in the same section, if the school runs it. */
+  previous: { name: string; classes: ClassRow[] } | null;
   subjects: Subject[];
 }) {
   const arms = classes.filter((c) => c.isActive);
   const off = classes.filter((c) => !c.isActive);
   const initial = levelState(arms, subjects);
+  // What the level before gives every one of its arms: the subjects a copy would tick.
+  const before = previous ? levelState(previous.classes.filter((c) => c.isActive), subjects) : null;
+  const copyable =
+    previous && before
+      ? { name: previous.name, subjects: subjects.filter((s) => s.isActive && before[s.id].offered === true).map((s) => ({ id: s.id, elective: before[s.id].elective === true })) }
+      : null;
   const full = subjects.filter((s) => initial[s.id].offered === true).length;
   const students = arms.reduce((n, a) => n + a.studentsNow, 0);
   const [open, setOpen] = useState(false);
@@ -133,6 +142,7 @@ export function LevelCard({
               arms={arms}
               subjects={subjects}
               initial={initial}
+              previous={copyable}
             />
           ) : (
             <p className="text-muted-foreground">
@@ -152,6 +162,7 @@ function LevelOffer({
   arms,
   subjects,
   initial,
+  previous,
 }: {
   schoolId: string;
   session: { id: string; name: string };
@@ -159,12 +170,30 @@ function LevelOffer({
   arms: ClassRow[];
   subjects: Subject[];
   initial: State;
+  previous: { name: string; subjects: { id: string; elective: boolean }[] } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [state, setState] = useState<State>(initial);
   const [error, setError] = useState<string | null>(null);
   const [onlyFor, setOnlyFor] = useState<ClassRow | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Subjects the level before has that this draft doesn't tick for every arm yet.
+  const toCopy = previous?.subjects.filter((p) => state[p.id]?.offered !== true) ?? [];
+
+  /** Ticks the level before's subjects in this draft. It only adds, and nothing is saved until Save is pressed. */
+  function copyPrevious() {
+    if (!previous || toCopy.length === 0) return;
+    setState((st) => {
+      const next = { ...st };
+      for (const p of toCopy) next[p.id] = { offered: true, elective: p.elective };
+      return next;
+    });
+    setCopied(
+      `Ticked ${toCopy.length} ${toCopy.length === 1 ? "subject" : "subjects"} from ${previous.name}. Check them, then save.`,
+    );
+  }
 
   // Switched off subjects show only while some arm still offers them.
   const shown = subjects.filter((s) => s.isActive || initial[s.id].offered !== false);
@@ -213,16 +242,29 @@ function LevelOffer({
 
   return (
     <section aria-labelledby={`offer-${level.id}`} className="flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
-        <h3 id={`offer-${level.id}`} className="type-label">
-          Subjects in {session.name}
-        </h3>
-        <p className="type-caption text-muted-foreground sm:text-sm">
-          {multiArm
-            ? `Ticked for every arm of ${level.name}. A dash means only some arms take it; tick it to give it to all.`
-            : `Tick the subjects ${arms[0].name} takes. Mark electives, which students choose one by one.`}
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-0.5">
+          <h3 id={`offer-${level.id}`} className="type-label">
+            Subjects in {session.name}
+          </h3>
+          <p className="type-caption text-muted-foreground sm:text-sm">
+            {multiArm
+              ? `Ticked for every arm of ${level.name}. A dash means only some arms take it; tick it to give it to all.`
+              : `Tick the subjects ${arms[0].name} takes. Mark electives, which students choose one by one.`}
+          </p>
+        </div>
+        {previous && previous.subjects.length > 0 && shown.length > 0 && (
+          <Button variant="outline" size="sm" className="shrink-0 self-start" onClick={copyPrevious} disabled={toCopy.length === 0}>
+            <CopyIcon data-icon="inline-start" />
+            {toCopy.length === 0 ? `Has all of ${previous.name}’s subjects` : `Copy ${previous.name}’s subjects`}
+          </Button>
+        )}
       </div>
+      {copied && (
+        <p aria-live="polite" className="rounded-lg border border-warning/30 bg-warning-wash p-3 type-caption text-foreground">
+          {copied}
+        </p>
+      )}
 
       {shown.length === 0 ? (
         <p className="rounded-lg border border-dashed border-input p-4 text-muted-foreground">Add the school’s subjects on the Subjects page first.</p>
@@ -285,6 +327,7 @@ function LevelOffer({
               onClick={() => {
                 setState(initial);
                 setError(null);
+                setCopied(null);
               }}
             >
               Undo changes

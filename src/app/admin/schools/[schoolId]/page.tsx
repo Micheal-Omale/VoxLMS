@@ -39,7 +39,9 @@ async function SchoolOverview({ params }: { params: Params }) {
   const [setup, progress, people] = await Promise.all([getSchoolSetup(ctx), getCurriculumProgress(ctx), listStaffWithLogins(schoolId)]);
   const { school, sections, sessions, currentTerm, checklist } = setup;
   const currentSession = sessions.find((s) => s.id === currentTerm?.sessionId);
-  const missingSignatures = sections.filter((s) => !s.headSignatureAssetId || !s.headName).length;
+  // Spec 0007, AC-7: only sections with their own head need a signature here.
+  const missingSignatures = sections.filter((s) => s.headName && !s.headSignatureAssetId).length;
+  const principalMissing = !school.principalName ? "the principal’s name and signature" : !school.principalSignatureAssetId ? "the principal’s signature" : null;
   const base = `/admin/schools/${school.id}`;
 
   const items = [
@@ -47,7 +49,7 @@ async function SchoolOverview({ params }: { params: Params }) {
       title: "Details",
       href: `${base}/details`,
       done: checklist.details,
-      status: `/${school.slug}, code ${school.code}, ${school.plan === "basic" ? "Basic plan" : "School logo plan"}`,
+      status: `/${school.slug}, code ${school.code}, ${school.plan === "basic" ? "Basic plan" : "School logo plan"}${principalMissing ? `. Still needs ${principalMissing}.` : ""}`,
     },
     {
       title: "Logo",
@@ -63,7 +65,7 @@ async function SchoolOverview({ params }: { params: Params }) {
         sections.length === 0
           ? "None added yet"
           : missingSignatures > 0
-            ? `${sections.map((s) => s.name).join(", ")}. ${missingSignatures} still ${missingSignatures === 1 ? "needs" : "need"} a head’s name or signature.`
+            ? `${sections.map((s) => s.name).join(", ")}. ${missingSignatures} own ${missingSignatures === 1 ? "head still needs a signature" : "heads still need a signature"}.`
             : sections.map((s) => s.name).join(", "),
     },
     {

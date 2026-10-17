@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import * as t from "@/db/schema";
 import { createSeedDb } from "@/db/seed/client";
-import { buildSchool } from "@/db/seed/demo-school";
+import { buildSchool, catchUpDemoSigners } from "@/db/seed/demo-school";
 import { seedStandardLists } from "@/db/seed/standard-lists";
 import { schoolContext, type SchoolContext } from "@/server/data";
 import type { Executor } from "@/server/data/context";
@@ -46,7 +46,10 @@ export async function refusedBy(tx: Executor, fn: (sp: Executor) => Promise<unkn
 
 async function ensureSchool(slug: string, code: string, name: string) {
   const found = await db.query.school.findFirst({ where: eq(t.school.slug, slug) });
-  if (found) return found.id;
+  if (found) {
+    await catchUpDemoSigners(db, found.id);
+    return found.id;
+  }
   return db.transaction((tx) => buildSchool(tx, { slug, code, name }));
 }
 

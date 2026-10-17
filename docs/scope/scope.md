@@ -21,7 +21,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 9 | Score entry | Release 1 | planned |
 | 10 | Results computation | Release 1 | planned |
 | 11 | Remarks & attendance | Release 1 | planned |
-| 22 | Section heads as dated records | Release 1 | in-progress |
+| 22 | School principal and section heads | Release 1 | done |
 | 12 | Report card PDF | Release 1 | planned |
 | 13 | Excel import | Release 2 | planned |
 | 14 | Behaviour & skills ratings | Release 2 | planned |
@@ -86,7 +86,7 @@ Our team and teachers sign in. No public sign up: our team creates every account
   - [x] Setup links by QR and WhatsApp, minimal admin area with read only view as (AC-3, AC-9, AC-13)
   - [x] Tests and demo logins (all ACs)
 - [ ] Verify it: `/check verify logins & access`
-- [ ] Test it: `/test logins & access`
+- [x] Test it: `/test logins & access`
 Spec [0004](../specs/0004-logins-access/index.md) · code in `src/server/auth/`, `src/app/login/`, `src/app/setup/`, `src/app/[school]/`, `src/app/admin/`
 
 ### 6. School & term setup · in-progress
@@ -98,7 +98,7 @@ Our team sets up a school: name, logo, address, motto, principal's signature or 
   - [x] Logo and signature uploads (AC-4)
   - [x] Sections, sessions, terms and the current term switch (AC-5, AC-6, AC-7)
 - [ ] Verify it: `/check verify school & term setup`
-- [ ] Test it: `/test school & term setup`
+- [x] Test it: `/test school & term setup`
 Spec [0005](../specs/0005-school-term-setup/index.md) · code in `src/app/admin/schools/`, `src/server/data/setup.ts`, `src/app/school-logo/`
 
 ### 7. Classes, subjects & grading rules · in-progress
@@ -134,17 +134,18 @@ The teacher adds a comment per student, the principal's comment, times school op
 **Done when:** remarks and attendance save per student per term and appear on the report card.
 - [ ] Build it: `/develop remarks & attendance`
 
-### 22. Section heads as dated records · in-progress
-Each section's head (principal or head teacher: title, name, signature) becomes a dated record that changes only through "Change principal", so reprinted report cards from an old term keep the head who signed that term. Comes before #12, which prints the signature. From spec 0007.
-**Done when:** a principal change from a chosen term leaves earlier terms with the old head and signature, honest mistakes can be fixed, and the latest change can be undone.
-- [x] Design it (spec): `/architect section heads as dated records`
-- [ ] Build it: `/develop section heads as dated records`
-  - [ ] Head records migration and the data rules: who signs a term, add, fix, change, undo, term date guard (AC-2 to AC-6, AC-8 to AC-12)
-  - [ ] Sections page head panel with Fix, Change principal, Undo and the password prompt (AC-1 to AC-7)
-  - [ ] Tests for every rule, the migration and access (AC-1 to AC-12)
-- [ ] Verify it: `/check verify section heads as dated records`
-- [ ] Test it: `/test section heads as dated records`
-Spec [0007](../specs/0007-section-head-history/index.md)
+### 22. School principal and section heads · done
+Each school has one principal (title, name, signature), set once on School details. A section may have its own head (for example a primary head teacher), who then signs that section's report cards instead. Names and signatures are fixed in place, with no history for now. Comes before #12, which prints the signature. From spec 0007.
+**Done when:** our team sets the principal once, gives Primary its own head, and `getSignerForSection` returns the right signer for every section.
+- [x] Design it (spec): `/architect school principal and section heads`
+- [x] Build it: `/develop school principal and section heads`
+  - [x] Remove the earlier 0007 build, then the migration and seed for the principal (AC-1, AC-10)
+  - [x] Data rules: save principal, own head switch, signature owner, signer, checklist (AC-1, AC-3, AC-4, AC-6 to AC-9)
+  - [x] Screens: Principal block, section switch, signer line on each card, the confirms (AC-1 to AC-5)
+  - [x] Tests for the signer, switch, fixes, uploads, checklist and access (AC-1 to AC-10)
+- [x] Verify it: `/check verify school principal and section heads`
+- [x] Test it: `/test school principal and section heads`
+Spec [0007](../specs/0007-school-principal-section-heads/index.md) · code in `src/server/data/setup.ts`, `src/app/admin/schools/[schoolId]/details/`, `src/app/admin/schools/[schoolId]/sections/`
 
 ### 12. Report card PDF · needs a decision
 The standard Nigerian report card for the whole class as one file, ready to print. Shows the school logo and signature on the school logo plan, or our branding ("Powered by") on the basic plan.
@@ -216,6 +217,7 @@ Out of scope for now, kept so the plan stays honest.
 - **School fees**: fee lists, payments, receipts, who owes what · needs a decision · full weight
 - **Parent portal**: parents sign in to see results and history (the Result PIN checker covers checking one term's result without an account) · needs a decision
 - **Principal approval**: the principal checks and locks results before printing or sending · needs a decision
+- **Principal history**: keep who signed which term, so reprints of old terms keep the earlier principal after a change (from spec 0007) · needs a decision
 - **Schools sign themselves up and pay online** · needs a decision · full weight
 - **Own domain and school subdomains** (for example `gracehigh.ourapp.com`) · needs a decision
 - **Learning platform**: student logins, past questions and practice, maybe online exams. WAEC, NECO, and JAMB own their past papers, so get permission or write original practice questions first · needs a decision · full weight

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import { classSortOrder } from "@/lib/class-name";
 import { normaliseNigerianPhone } from "@/lib/phone";
@@ -58,9 +58,31 @@ const seniorStudents: [string, string, "male" | "female", string, string, string
   ["Udo", "Godswill", "male", "2010-08-08", "Red", ["Further Mathematics"]],
 ];
 
+// Spec 0007: one principal for the school; only Primary has a head of its own.
+const DEMO_PRINCIPAL = { principalTitle: "Principal", principalName: "Mr Samuel Adeleke" };
+const DEMO_PRIMARY_HEAD = { headTitle: "Head teacher", headName: "Mrs Grace Oyelaran" };
+
+/**
+ * Brings a made-up school built before spec 0007 (a head named on every
+ * section) to the seed's current shape. Runs once: a school that already has
+ * a principal is left alone.
+ */
+export async function catchUpDemoSigners(db: SeedDb | Tx, schoolId: string) {
+  const [found] = await db.select({ principal: t.school.principalName }).from(t.school).where(eq(t.school.id, schoolId));
+  if (!found || found.principal) return;
+  await db.update(t.school).set(DEMO_PRINCIPAL).where(eq(t.school.id, schoolId));
+  await db
+    .update(t.section)
+    .set({ headTitle: "Head teacher", headName: null })
+    .where(and(eq(t.section.schoolId, schoolId), ne(t.section.stage, "primary"), isNull(t.section.headSignatureAssetId)));
+}
+
 export async function seedDemoSchool(db: SeedDb) {
   const existing = await db.query.school.findFirst({ where: eq(t.school.slug, DEMO_SLUG) });
-  if (existing) return { created: false as const, schoolId: existing.id };
+  if (existing) {
+    await catchUpDemoSigners(db, existing.id);
+    return { created: false as const, schoolId: existing.id };
+  }
 
   const schoolId = await db.transaction(async (tx) =>
     buildSchool(tx, { slug: DEMO_SLUG, code: "GHS", name: "Grace High School" }),
@@ -80,6 +102,7 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
       motto: "Knowledge and Character",
       phone: phone("0803 000 1100"),
       plan: "school_logo",
+      ...DEMO_PRINCIPAL,
     })
     .returning();
   const schoolId = school.id;
@@ -98,9 +121,9 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
   const [primary, junior, senior] = await tx
     .insert(t.section)
     .values([
-      { schoolId, stage: "primary", name: "Primary", teacherTitle: "Class teacher", headTitle: "Head teacher", headName: "Mrs Grace Oyelaran" },
-      { schoolId, stage: "junior_secondary", name: "Junior Secondary", teacherTitle: "Form master", headTitle: "Principal", headName: "Mr Samuel Adeleke" },
-      { schoolId, stage: "senior_secondary", name: "Senior Secondary", teacherTitle: "Form master", headTitle: "Principal", headName: "Mr Samuel Adeleke" },
+      { schoolId, stage: "primary", name: "Primary", teacherTitle: "Class teacher", ...DEMO_PRIMARY_HEAD },
+      { schoolId, stage: "junior_secondary", name: "Junior Secondary", teacherTitle: "Form master", headTitle: "Head teacher" },
+      { schoolId, stage: "senior_secondary", name: "Senior Secondary", teacherTitle: "Form master", headTitle: "Head teacher" },
     ])
     .returning();
 
@@ -319,7 +342,7 @@ export async function removeSchoolBySlug(db: SeedDb, slug: string) {
       t.academicSession, t.section,
     ];
     for (const table of ordered) await tx.delete(table).where(eq(table.schoolId, id));
-    await tx.update(t.school).set({ logoAssetId: null }).where(eq(t.school.id, id));
+    await tx.update(t.school).set({ logoAssetId: null, principalSignatureAssetId: null }).where(eq(t.school.id, id));
     await tx.delete(t.asset).where(inArray(t.asset.schoolId, [id]));
     await tx.delete(t.school).where(eq(t.school.id, id));
   });

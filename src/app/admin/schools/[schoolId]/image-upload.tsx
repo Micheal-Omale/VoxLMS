@@ -9,6 +9,8 @@ import { FieldDescription, FieldError } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
 
+import { ConfirmFix, type FixConfirm } from "./confirm-fix";
+
 const MAX_WIDTH = 600;
 
 /**
@@ -45,20 +47,27 @@ async function prepareImage(file: File, kind: "logo" | "signature"): Promise<Blo
   );
 }
 
+/** Whose signature an upload is (spec 0007): the school's principal, or one section's own head. */
+export type SignatureOwner = { signer: "principal" } | { signer: "section"; sectionId: string };
+
 export function ImageUpload({
   schoolId,
   kind,
-  sectionId,
+  owner,
   currentUrl,
   label,
   hint,
+  confirmReplace,
 }: {
   schoolId: string;
   kind: "logo" | "signature";
-  sectionId?: string;
+  /** Required for a signature. */
+  owner?: SignatureOwner;
   currentUrl: string | null;
   label: string;
   hint: string;
+  /** Asked before replacing an image that is already there (spec 0007, AC-2 and AC-3). */
+  confirmReplace?: FixConfirm;
 }) {
   const router = useRouter();
   const inputId = useId();
@@ -66,19 +75,32 @@ export function ImageUpload({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState<File | null>(null);
+  const shown = preview ?? currentUrl;
 
-  async function upload(file: File) {
+  function choose(file: File) {
     setError(null);
     if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) {
       setError("Choose a JPG, PNG or WebP image.");
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
+    // Setting an image for the first time needs no confirm.
+    if (confirmReplace && shown) setWaiting(file);
+    else void upload(file);
+  }
+
+  async function upload(file: File) {
+    setWaiting(null);
     setBusy(true);
     try {
       const prepared = await prepareImage(file, kind);
       const form = new FormData();
       form.set("kind", kind);
-      if (sectionId) form.set("sectionId", sectionId);
+      if (owner) {
+        form.set("signer", owner.signer);
+        if (owner.signer === "section") form.set("sectionId", owner.sectionId);
+      }
       form.set("file", prepared, `${kind}.png`);
       const response = await fetch(`/admin/schools/${schoolId}/images`, { method: "POST", body: form });
       const result = (await response.json().catch(() => null)) as { ok: boolean; error?: string } | null;
@@ -97,7 +119,6 @@ export function ImageUpload({
     }
   }
 
-  const shown = preview ?? currentUrl;
   return (
     <div className="flex flex-col gap-2">
       <span className="type-label">{label}</span>
@@ -111,7 +132,7 @@ export function ImageUpload({
             // eslint-disable-next-line @next/next/no-img-element -- our own image routes, already sized
             <img src={shown} alt={`Current ${label.toLowerCase()}`} className="max-h-full max-w-full object-contain p-1" />
           ) : (
-            <span className="type-caption text-muted-foreground">None yet</span>
+            <span className="type-caption text-muted-foreground">{kind === "signature" ? "No signature yet" : "None yet"}</span>
           )}
         </div>
         <input
@@ -122,7 +143,7 @@ export function ImageUpload({
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
-            if (file) void upload(file);
+            if (file) choose(file);
           }}
         />
         <Button type="button" variant="outline" disabled={busy} onClick={() => inputRef.current?.click()}>
@@ -131,6 +152,14 @@ export function ImageUpload({
         </Button>
       </div>
       {error ? <FieldError>{error}</FieldError> : <FieldDescription>{hint}</FieldDescription>}
+      <ConfirmFix
+        confirm={waiting ? (confirmReplace ?? null) : null}
+        onConfirm={() => waiting && void upload(waiting)}
+        onCancel={() => {
+          setWaiting(null);
+          if (inputRef.current) inputRef.current.value = "";
+        }}
+      />
     </div>
   );
 }

@@ -55,6 +55,7 @@ export function SchoolDetailsForm({
   const [slugTouched, setSlugTouched] = useState(mode === "edit");
   const [codeTouched, setCodeTouched] = useState(mode === "edit");
   const [plan, setPlan] = useState(initial.plan);
+  const [showAttendance, setShowAttendance] = useState(initial.showAttendance);
   const err = (field: string) => (state && !state.ok && state.field === field ? state.error : null);
   const v = (name: string, fallback: string) => state?.values?.[name] ?? fallback;
 
@@ -192,7 +193,9 @@ export function SchoolDetailsForm({
 
         {mode === "edit" && (
           <Field orientation="horizontal">
-            <Checkbox id="showAttendance" name="showAttendance" defaultChecked={initial.showAttendance} />
+            {/* Sent from state, like the plan: a refused save resets the form, which clears the checkbox's own hidden input. */}
+            <input type="hidden" name="showAttendance" value={showAttendance ? "on" : ""} />
+            <Checkbox id="showAttendance" checked={showAttendance} onCheckedChange={setShowAttendance} />
             <FieldLabel htmlFor="showAttendance" className="font-normal">
               Report cards show attendance (times school opened, present, absent)
             </FieldLabel>

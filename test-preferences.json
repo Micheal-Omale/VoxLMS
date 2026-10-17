@@ -1,0 +1,9 @@
+{
+  "tool": "vitest",
+  "gate": null,
+  "additionalTools": ["@testing-library/react", "@testing-library/user-event", "@testing-library/jest-dom", "jsdom"],
+  "e2eTool": "none",
+  "testDir": "test",
+  "filePattern": "*.test.ts (data and route), *.test.tsx (components, jsdom per file)",
+  "packageManager": "npm"
+}

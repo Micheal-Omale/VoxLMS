@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 
 import { PasswordInput } from "@/components/password-input";
@@ -15,6 +15,7 @@ import { signInAction, type SignInState } from "./actions";
 
 export function SignInForm() {
   const [state, action, pending] = useActionState<SignInState, FormData>(signInAction, null);
+  const [shared, setShared] = useState(false);
 
   return (
     <form action={action}>
@@ -48,7 +49,9 @@ export function SignInForm() {
           <PasswordInput id="password" name="password" autoComplete="current-password" />
         </Field>
         <Field orientation="horizontal">
-          <Checkbox id="shared" name="shared" />
+          {/* Sent from state: a wrong password resets the form, which clears the checkbox's own hidden input. */}
+          <input type="hidden" name="shared" value={shared ? "on" : ""} />
+          <Checkbox id="shared" checked={shared} onCheckedChange={setShared} />
           <FieldLabel htmlFor="shared" className="font-normal">
             This is a shared computer
           </FieldLabel>
