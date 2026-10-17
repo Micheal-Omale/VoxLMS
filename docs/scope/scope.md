@@ -17,7 +17,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 5 | Logins & access | Release 1 | in-progress |
 | 6 | School & term setup | Release 1 | in-progress |
 | 7 | Classes, subjects & grading rules | Release 1 | in-progress |
-| 8 | Enrol teachers & students | Release 1 | planned |
+| 8 | Enrol teachers & students | Release 1 | in-progress |
 | 9 | Score entry | Release 1 | planned |
 | 10 | Results computation | Release 1 | planned |
 | 11 | Remarks & attendance | Release 1 | planned |
@@ -114,10 +114,19 @@ Our team adds classes and arms, the subjects each class offers (marking which ar
 - [ ] Test it: `/test classes, subjects & grading rules`
 Spec [0006](../specs/0006-classes-subjects-grading/index.md) · code in `src/server/data/curriculum.ts`, `src/server/data/grading.ts`, `src/app/admin/schools/[schoolId]/subjects/`, `classes/`, `grading/`
 
-### 8. Enrol teachers & students · needs a decision
-Our team adds teachers and students one at a time, assigns each class its form master or class teacher, and records each parent's name, phone number, and WhatsApp consent (collected now for Release 4).
+### 8. Enrol teachers & students · in-progress
+Our team adds teachers and students one at a time, assigns each class its form master or class teacher, and records each parent's name and phone number. WhatsApp consent waits for #19 (spec 0008); parents check results by PIN first (#21).
 **Done when:** our team can enrol a class of students and its teacher, and that teacher sees exactly that class after signing in.
-- [ ] Design it (spec): `/architect enrol teachers & students`
+- [x] Design it (spec): `/architect enrol teachers & students`
+- [ ] Build it: `/develop enrol teachers & students`
+  - [ ] Admission number migration, and the Staff page with login in the same step (AC-1, AC-2, AC-3, AC-6, AC-16)
+  - [ ] Students page, class list with form master and quick add, and the teacher's class page (AC-4, AC-5, AC-6, AC-14)
+  - [ ] Student panel: details, photo, parents with sibling linking (AC-7, AC-8)
+  - [ ] Move, left and remove; electives grid; carry forward on term switch (AC-9 to AC-13)
+  - [ ] Checklist items and tests (AC-15, all ACs tested)
+- [ ] Verify it: `/check verify enrol teachers & students`
+- [ ] Test it: `/test enrol teachers & students`
+Spec [0008](../specs/0008-enrol-teachers-students/index.md)
 
 ### 9. Score entry · needs a decision
 The teacher enters CA1, CA2, and Exam scores for every student in every subject of their class, quickly, on a phone or computer.
@@ -217,6 +226,7 @@ Out of scope for now, kept so the plan stays honest.
 - **School fees**: fee lists, payments, receipts, who owes what · needs a decision · full weight
 - **Parent portal**: parents sign in to see results and history (the Result PIN checker covers checking one term's result without an account) · needs a decision
 - **Principal approval**: the principal checks and locks results before printing or sending · needs a decision
+- **Re-admit a student who left in an earlier term**: a "Left the school" list with "Re-admit into class" (from spec 0008) · needs a decision
 - **Principal history**: keep who signed which term, so reprints of old terms keep the earlier principal after a change (from spec 0007) · needs a decision
 - **Schools sign themselves up and pay online** · needs a decision · full weight
 - **Own domain and school subdomains** (for example `gracehigh.ourapp.com`) · needs a decision
