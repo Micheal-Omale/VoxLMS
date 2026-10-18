@@ -54,3 +54,9 @@ export class Conflict extends DataError {
     super(`Scores for ${studentIds.length} student(s) were changed by someone else since you opened the sheet`);
   }
 }
+
+export class TermClosed extends DataError {
+  constructor() {
+    super("Scores can only be changed in the current term");
+  }
+}

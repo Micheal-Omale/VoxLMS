@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ChevronLeftIcon } from "lucide-react";
@@ -11,7 +12,9 @@ import { SubjectSwitcher } from "./subject-switcher";
 
 export const metadata: Metadata = { title: "Score entry" };
 
-export default function ScoreEntryPreview() {
+type SearchParams = Promise<{ parts?: string }>;
+
+export default function ScoreEntryPreview({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <AppBar school={demoSchool} term={demoTerm} account={{ name: demoTeacher.name, detail: demoTeacher.role, canSwitchSchool: false, readOnly: false }} />
@@ -35,8 +38,15 @@ export default function ScoreEntryPreview() {
           </div>
           <SubjectSwitcher />
         </div>
-        <ScoreEntryDemo />
+        <Suspense>
+          <Demo searchParams={searchParams} />
+        </Suspense>
       </main>
     </>
   );
+}
+
+async function Demo({ searchParams }: { searchParams: SearchParams }) {
+  const { parts } = await searchParams;
+  return <ScoreEntryDemo parts={parts === "5" ? 5 : 3} />;
 }

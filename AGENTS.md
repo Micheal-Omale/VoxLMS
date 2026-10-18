@@ -20,6 +20,8 @@ Skateboard: ship the smallest report card tool a real school would use, then gro
 
 - A Base UI `Checkbox` or `Switch` inside a form with a server action must not carry `name`. Keep its value in React state and send it through `<input type="hidden" name=… value={on ? "on" : ""} />`. React resets the form after the action returns, and the control's own hidden checkbox resets to unticked while it still looks ticked.
 - Who signs a section's report cards comes only from `getSignerForSection` in `src/server/data/setup.ts`: the section's own head if it has one, else the school's principal (spec 0007).
+- A server action that must answer with a result the screen acts on (not redirect) finds the signed in person with `getActionViewer()` in `src/server/auth/viewer.ts`, never `getViewer()`. Inside an action any cookie Better Auth writes makes Next re-render the page, whose sign in check then redirects first. `src/proxy.ts` lets server action requests through for the same reason (spec 0009).
+- Only the current term takes scores: `saveScores` refuses any other term with `TermClosed`, reading `term.is_current` under a share lock inside its transaction (spec 0009). Scores reach the database only through `saveScores`.
 
 ## Testing
 

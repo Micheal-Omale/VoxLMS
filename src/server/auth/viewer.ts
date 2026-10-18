@@ -10,7 +10,7 @@ import { school, session as sessionTable } from "@/db/schema";
 import { type SchoolContext, schoolContext } from "@/server/data";
 
 import { auth } from "./auth";
-import { SHARED_DEVICE_HOURS, TEAM_SESSION_HOURS } from "./config";
+import { createAuth, SHARED_DEVICE_HOURS, TEAM_SESSION_HOURS } from "./config";
 import { activeSchoolsFor } from "./service";
 
 // Who is signed in (spec 0004). Cached for one request with React's cache,
@@ -30,8 +30,22 @@ export type Viewer = {
 
 const hoursAgo = (hours: number) => Date.now() - hours * 3600 * 1000;
 
-export const getViewer = cache(async (): Promise<Viewer | null> => {
-  const found = await auth.api.getSession({ headers: await headers() });
+export const getViewer = cache(async (): Promise<Viewer | null> => viewerFrom(await auth.api.getSession({ headers: await headers() })));
+
+// Never writes cookies: no next-cookies plugin, and no session refresh.
+const quietAuth = createAuth(db, { withNextCookies: false });
+
+/**
+ * The same, for Server Actions that must answer with a result instead of
+ * redirecting. Inside a Server Action any cookie write (Better Auth clearing
+ * a dead session's cookie) makes Next re-render the page, whose sign in check
+ * then redirects before the action's own answer arrives (spec 0009, AC-5).
+ */
+export async function getActionViewer(): Promise<Viewer | null> {
+  return viewerFrom(await quietAuth.api.getSession({ headers: await headers(), query: { disableRefresh: true } }));
+}
+
+async function viewerFrom(found: Awaited<ReturnType<typeof auth.api.getSession>>): Promise<Viewer | null> {
   if (!found) return null;
   const { session, user } = found;
 
@@ -60,7 +74,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     passwordConfirmedAt: row.passwordConfirmedAt,
     schools: await activeSchoolsFor(db, user.id),
   };
-});
+}
 
 /** Pages for signed in people only. */
 export async function requireViewer(): Promise<Viewer> {
@@ -76,16 +90,25 @@ export async function requireViewer(): Promise<Viewer> {
  */
 export async function requireSchoolContext(slug: string): Promise<{ ctx: SchoolContext; viewer: Viewer; school: typeof school.$inferSelect }> {
   const viewer = await requireViewer();
+  const resolved = await schoolContextFor(viewer, slug);
+  if (!resolved) notFound();
+  return { viewer, ...resolved };
+}
+
+/**
+ * The same check without redirecting, for Server Actions that must answer
+ * with a result the screen can act on. Null means not found.
+ */
+export async function schoolContextFor(viewer: Viewer, slug: string): Promise<{ ctx: SchoolContext; school: typeof school.$inferSelect } | null> {
   const [found] = await db.select().from(school).where(eq(school.slug, slug));
-  if (!found) notFound();
+  if (!found) return null;
 
   if (viewer.isTeam) {
-    return { viewer, school: found, ctx: schoolContext({ schoolId: found.id, userId: viewer.userId, actor: { kind: "admin", readOnly: false } }) };
+    return { school: found, ctx: schoolContext({ schoolId: found.id, userId: viewer.userId, actor: { kind: "admin", readOnly: false } }) };
   }
   const membership = viewer.schools.find((s) => s.schoolId === found.id);
-  if (!membership) notFound();
+  if (!membership) return null;
   return {
-    viewer,
     school: found,
     ctx: schoolContext({
       schoolId: found.id,

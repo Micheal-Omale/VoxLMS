@@ -18,7 +18,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 6 | School & term setup | Release 1 | in-progress |
 | 7 | Classes, subjects & grading rules | Release 1 | in-progress |
 | 8 | Enrol teachers & students | Release 1 | in-progress |
-| 9 | Score entry | Release 1 | in-progress |
+| 9 | Score entry | Release 1 | done |
 | 10 | Results computation | Release 1 | planned |
 | 11 | Remarks & attendance | Release 1 | planned |
 | 22 | School principal and section heads | Release 1 | done |
@@ -125,22 +125,22 @@ Our team adds teachers and students one at a time, assigns each class its form m
   - [x] Move, left and remove; electives grid; carry forward on term switch (AC-9 to AC-13)
   - [x] Checklist items and tests (AC-15, all ACs tested)
 - [ ] Verify it: `/check verify enrol teachers & students`
-- [ ] Test it: `/test enrol teachers & students`
+- [x] Test it: `/test enrol teachers & students`
 Spec [0008](../specs/0008-enrol-teachers-students/index.md) · code in `src/server/data/staff.ts`, `src/server/data/students.ts`, `src/server/data/guardians.ts`, `src/app/admin/schools/[schoolId]/staff/`, `students/`, `src/app/[school]/classes/`
 
-### 9. Score entry · in-progress
+### 9. Score entry · done
 The teacher enters CA1, CA2, and Exam scores for every student in every subject of their class, quickly, on a phone or computer.
 **Done when:** a teacher can fill a whole class's scores without losing work; a score above its maximum is refused with a clear message; saved scores survive a page refresh.
 - [x] Design it (spec): `/architect score entry`
-- [ ] Build it: `/develop score entry`
-  - [ ] Data: closed term refusal, progress, sheet additions and history (AC-1, AC-6, AC-11 to AC-13)
-  - [ ] Subject list and score sheet on real data with save, 1 to 5 parts and empty states (AC-1, AC-3 to AC-5, AC-13, AC-14)
-  - [ ] Protect typed work: term picker and read only sheets, stale drafts, conflicts, out of date reloads (AC-2, AC-5 to AC-9)
-  - [ ] Paste a column, score history, and our team's Scores page (AC-10 to AC-12)
-  - [ ] Component tests and visual check at 390px and 1280px (all ACs)
-- [ ] Verify it: `/check verify score entry`
-- [ ] Test it: `/test score entry`
-Spec [0009](../specs/0009-score-entry/index.md)
+- [x] Build it: `/develop score entry`
+  - [x] Data: closed term refusal, progress, sheet additions and history (AC-1, AC-6, AC-11 to AC-13)
+  - [x] Subject list and score sheet on real data with save, 1 to 5 parts and empty states (AC-1, AC-3 to AC-5, AC-13, AC-14)
+  - [x] Protect typed work: term picker and read only sheets, stale drafts, conflicts, out of date reloads (AC-2, AC-5 to AC-9)
+  - [x] Paste a column, score history, and our team's Scores page (AC-10 to AC-12)
+  - [x] Component tests and visual check at 390px and 1280px (all ACs)
+- [x] Verify it: `/check verify score entry`
+- [x] Test it: `/test score entry`
+Spec [0009](../specs/0009-score-entry/index.md) · code in `src/server/data/scores.ts`, `src/components/score-sheet/`, `src/app/[school]/classes/`, `src/app/admin/schools/[schoolId]/scores/`
 
 ### 10. Results computation · needs a decision · full
 The system works out each subject's total and grade, each subject's position, the class average, highest and lowest per subject, each student's overall total and average, and position in class (for example 5th of 32).

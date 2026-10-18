@@ -77,3 +77,20 @@ export const demoScores: SheetScores = Object.fromEntries(
     return [student.id, { ca1, ca2, exam }];
   }),
 );
+
+// A five part split, so the preview can show the sheet at its widest (spec 0009).
+export const demoColumnsFive: ScoreColumn[] = [
+  { key: "ca1", label: "CA 1", max: 10 },
+  { key: "ca2", label: "CA 2", max: 10 },
+  { key: "test", label: "Test", max: 10 },
+  { key: "project", label: "Project", max: 10 },
+  { key: "exam", label: "Exam", max: 60 },
+];
+
+export const demoScoresFive: SheetScores = Object.fromEntries(
+  demoStudents.map((student, i) => {
+    const [ca1, ca2, exam] = filled[i];
+    const half = (v: string) => (v === "" ? "" : String(Math.round(Number(v) / 2)));
+    return [student.id, { ca1: half(ca1), ca2: half(ca2), test: half(ca1), project: ca2 === "" ? "" : "10", exam }];
+  }),
+);

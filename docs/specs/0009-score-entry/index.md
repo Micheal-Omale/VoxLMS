@@ -1,7 +1,7 @@
 # 0009. Score entry
 
 **Date**: 2026-10-17
-**Status**: Proposed
+**Status**: Accepted
 
 ## Summary
 
@@ -130,12 +130,12 @@ The form master works one subject at a time on the `ScoreSheet` that already exi
 
 Skateboard: first the thinnest whole a form master can use for real (subject list, one sheet, save), then the cases that protect typed work, then the helpers (paste, history), then our team's overview.
 
-1. Data: `TermClosed` and the term share lock in `saveScores`; `getScoreSheet` additions; `listSubjectProgress` and `getScoreProgress` on one shared progress query; `getScoreHistory` with name lookup; database tests in `inRollback`; satisfies **AC-1**, **AC-6**, **AC-11**, **AC-12**, **AC-13**.
-2. Thinnest usable whole: the Scores section on the class page, the sheet route on real data with `saveScoresAction` (happy path, offline, failed request), `ScoreSheet` with 1 to 5 parts and admission numbers, subject switcher, empty states; satisfies **AC-1**, **AC-3**, **AC-4**, **AC-5**, **AC-13**, **AC-14**.
-3. Protect typed work: the term picker and read only sheets, the stale draft notice, conflict rows with "Keep mine" and "Use saved", and the stale reload; satisfies **AC-2**, **AC-6**, **AC-7**, **AC-8**, **AC-9**.
-4. Helpers: multi line paste into a column, and the history panel opened from the student's name; satisfies **AC-10**, **AC-11**.
-5. Our team's Scores page and its link on the school overview; satisfies **AC-12**.
-6. Component tests (`*.test.ts`, `createElement`, jsdom) for paste, conflict choice, read only and stale draft; visual check at 390px and 1280px with 3 and 5 parts; satisfies **AC-3**, **AC-7**, **AC-9**, **AC-10**, and **AC-1** to **AC-14** overall.
+1. [x] Data: `TermClosed` and the term share lock in `saveScores`; `getScoreSheet` additions; `listSubjectProgress` and `getScoreProgress` on one shared progress query; `getScoreHistory` with name lookup; database tests in `inRollback`; satisfies **AC-1**, **AC-6**, **AC-11**, **AC-12**, **AC-13**.
+2. [x] Thinnest usable whole: the Scores section on the class page, the sheet route on real data with `saveScoresAction` (happy path, offline, failed request), `ScoreSheet` with 1 to 5 parts and admission numbers, subject switcher, empty states; satisfies **AC-1**, **AC-3**, **AC-4**, **AC-5**, **AC-13**, **AC-14**.
+3. [x] Protect typed work: the term picker and read only sheets, the stale draft notice, conflict rows with "Keep mine" and "Use saved", and the stale reload; satisfies **AC-2**, **AC-6**, **AC-7**, **AC-8**, **AC-9**.
+4. [x] Helpers: multi line paste into a column, and the history panel opened from the student's name; satisfies **AC-10**, **AC-11**.
+5. [x] Our team's Scores page and its link on the school overview; satisfies **AC-12**.
+6. [x] Component tests (`*.test.ts`, `createElement`, jsdom) for paste, conflict choice, read only and stale draft; visual check at 390px and 1280px with 3 and 5 parts; satisfies **AC-3**, **AC-7**, **AC-9**, **AC-10**, and **AC-1** to **AC-14** overall.
 
 ## Consequences
 

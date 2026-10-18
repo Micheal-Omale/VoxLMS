@@ -3,7 +3,19 @@ export { readSnapshot, schoolContext, type SchoolContext } from "./context";
 export * from "./errors";
 export { getClassPage, listClassStudents, listHomeClasses } from "./classes";
 export { getCurrentTerm, setCurrentTerm } from "./terms";
-export { canonicalScore, getScoreSheet, saveScores, SCORE_INPUT, type ScoreChangeInput, type ScoresByStudent } from "./scores";
+export {
+  canonicalScore,
+  getScoreHistory,
+  getScoreProgress,
+  getScoreSheet,
+  listSubjectProgress,
+  saveScores,
+  SCORE_INPUT,
+  type ScoreChangeInput,
+  type ScoreHistory,
+  type ScoresByStudent,
+  type ScoreSheetData,
+} from "./scores";
 export { getGradeBands, getStudentSessionResults } from "./results";
 export { linkGuardian, TooManyGuardians } from "./guardians";
 export { allocateStudentNumbers } from "./students";

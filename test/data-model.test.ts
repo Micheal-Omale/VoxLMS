@@ -262,6 +262,9 @@ describe("AC-8: electives", () => {
       const [scienceB] = await tx.insert(t.schoolClass).values({ schoolId: a.schoolId, sectionId: senior.id, stage: "senior_secondary", standardLevelId: a.cls(SS).standardLevelId, arm: "Science B", name: "SS 1 Science B" }).returning();
       const [fmB] = await tx.insert(t.classSubject).values({ schoolId: a.schoolId, sessionId: a.session.id, classId: scienceB.id, sectionId: senior.id, subjectId: furtherMaths.subjectId, isElective: true }).returning();
       await tx.insert(t.enrolment).values({ schoolId: a.schoolId, studentId: a.student("Udo Godswill").id, termId: a.term(2).id, sessionId: a.session.id, classId: scienceB.id, sectionId: senior.id });
+      // Only the current term takes scores (spec 0009, AC-6).
+      await tx.update(t.term).set({ isCurrent: false }).where(eq(t.term.id, a.term(1).id));
+      await tx.update(t.term).set({ isCurrent: true }).where(eq(t.term.id, a.term(2).id));
       const result = await save(a, tx, fmB.id, [{ studentId: a.student("Udo Godswill").id, componentKey: "ca1", expected: null, value: "14" }], randomUUID(), 2);
       expect(result.changed).toBe(1);
     });
