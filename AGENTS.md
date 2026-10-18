@@ -22,6 +22,7 @@ Skateboard: ship the smallest report card tool a real school would use, then gro
 - Who signs a section's report cards comes only from `getSignerForSection` in `src/server/data/setup.ts`: the section's own head if it has one, else the school's principal (spec 0007).
 - A server action that must answer with a result the screen acts on (not redirect) finds the signed in person with `getActionViewer()` in `src/server/auth/viewer.ts`, never `getViewer()`. Inside an action any cookie Better Auth writes makes Next re-render the page, whose sign in check then redirects first. `src/proxy.ts` lets server action requests through for the same reason (spec 0009).
 - Only the current term takes scores: `saveScores` refuses any other term with `TermClosed`, reading `term.is_current` under a share lock inside its transaction (spec 0009). Scores reach the database only through `saveScores`.
+- Class results (totals, grades, positions, averages) come only from `loadClassResults` / `getClassResults` in `src/server/data/results.ts`, which run the pure `computeClassResults` in `src/lib/results.ts` in whole tenths and hundredths. Nothing computed is stored, and a part not entered is never 0. The report card, broadsheet and reprint call `loadClassResults` inside their own `readSnapshot`, never their own maths (spec 0010).
 
 ## Testing
 

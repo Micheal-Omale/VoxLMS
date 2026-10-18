@@ -10,8 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { displayStudentId } from "@/lib/student-number";
 import { termLabel } from "@/lib/term-label";
 import { requireSchoolContext } from "@/server/auth/viewer";
-import { getClassPage, listSubjectProgress, NoCurrentTerm, NotFound } from "@/server/data";
+import { getClassPage, getClassResults, listSubjectProgress, NoCurrentTerm, NotFound } from "@/server/data";
 
+import { ResultsSection } from "./results-section";
 import { ScoresSection } from "./scores-section";
 
 export const metadata: Metadata = { title: "Class" };
@@ -38,17 +39,18 @@ export default function ClassPage({ params, searchParams }: { params: Params; se
 
 /**
  * A form class: its subjects with score progress first (spec 0009, AC-1,
- * AC-2), then its students this term, read only (spec 0008, AC-14). No photos
- * or parents for teachers.
+ * AC-2), then the term's results (spec 0010, AC-8), then its students this
+ * term, read only (spec 0008, AC-14). No photos or parents for teachers.
  */
 async function ClassList({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const [{ school: slug, classId }, { term: termParam }] = await Promise.all([params, searchParams]);
   const { ctx, school } = await requireSchoolContext(slug);
   const termId = typeof termParam === "string" ? termParam : undefined;
   if (!UUID.test(classId) || (termParam !== undefined && !(termId && UUID.test(termId)))) notFound();
-  const [page, progress] = await Promise.all([
+  const [page, progress, results] = await Promise.all([
     getClassPage(ctx, { classId }).catch(notFoundOn),
     listSubjectProgress(ctx, { classId, termId }).catch(notFoundOn),
+    getClassResults(ctx, { classId, termId }).catch(notFoundOn),
   ]);
   const { cls, term, session, students } = page;
   const boys = students.filter((s) => s.gender === "male").length;
@@ -74,6 +76,8 @@ async function ClassList({ params, searchParams }: { params: Params; searchParam
       </div>
 
       <ScoresSection slug={slug} classId={cls.id} progress={progress} />
+
+      <ResultsSection results={results} schoolCode={school.code} />
 
       <section aria-labelledby="students-title" className="flex flex-col gap-4">
         <h2 id="students-title" className="type-title">

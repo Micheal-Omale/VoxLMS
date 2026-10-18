@@ -16,7 +16,7 @@ export {
   type ScoresByStudent,
   type ScoreSheetData,
 } from "./scores";
-export { getGradeBands, getStudentSessionResults } from "./results";
+export { type ClassResults, getClassResults, getGradeBands, getStudentSessionResults, loadClassResults } from "./results";
 export { linkGuardian, TooManyGuardians } from "./guardians";
 export { allocateStudentNumbers } from "./students";
 export { assertClassAccess, assertWritable, listMyClasses, ReadOnlySession } from "./access";

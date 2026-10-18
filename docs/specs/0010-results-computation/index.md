@@ -1,7 +1,7 @@
 # 0010. Results computation
 
 **Date**: 2026-10-18
-**Status**: Proposed
+**Status**: Accepted
 
 ## Summary
 
@@ -125,11 +125,11 @@ The breakdown needs no extra request: the page already holds the whole class's r
 
 Skateboard: first the thinnest whole a form master can use for real (the rules, one read, the ranked list on the class page), then the breakdown, then the polish and the visual check. No migration, so the pure rules come first: everything else stands on them.
 
-1. [ ] Pure rules in `src/lib/results.ts`: tenths and hundredths arithmetic, grade lookup, competition ranking, ordinals, provisional and final, display formatting, and `computeClassResults`; unit tests against the hand calculated sample class, plus the `gradeFor` agreement test; satisfies **AC-1**, **AC-2**, **AC-3**, **AC-4**, **AC-5**, **AC-6**, **AC-7**, **AC-12**.
-2. [ ] Data: `loadClassResults` and `getClassResults` in `src/server/data/results.ts` (access check, term choice matching `listSubjectProgress`, open enrolments, takers, split, scale, scores), exported from `src/server/data/index.ts`; database tests in `inRollback`; satisfies **AC-4**, **AC-7**, **AC-10**, **AC-11**.
-3. [ ] Thinnest usable whole: the Results section on the class page between Scores and Students, following `?term`: summary line, ranked list, incomplete group with missing parts, and the AC-9 empty states; satisfies **AC-8**, **AC-9**.
-4. [ ] Student breakdown panel opened from a row: subjects with parts, total, grade, remark, subject position, class average, highest, lowest, then overall figures; satisfies **AC-8**.
-5. [ ] Component tests (`*.test.ts`, `createElement`, jsdom) for the section and the panel; visual check at 390px and 1280px with 20 subjects and 5 parts; satisfies **AC-8**, and **AC-1** to **AC-12** overall.
+1. [x] Pure rules in `src/lib/results.ts`: tenths and hundredths arithmetic, grade lookup, competition ranking, ordinals, provisional and final, display formatting, and `computeClassResults`; unit tests against the hand calculated sample class, plus the `gradeFor` agreement test; satisfies **AC-1**, **AC-2**, **AC-3**, **AC-4**, **AC-5**, **AC-6**, **AC-7**, **AC-12**.
+2. [x] Data: `loadClassResults` and `getClassResults` in `src/server/data/results.ts` (access check, term choice matching `listSubjectProgress`, open enrolments, takers, split, scale, scores), exported from `src/server/data/index.ts`; database tests in `inRollback`; satisfies **AC-4**, **AC-7**, **AC-10**, **AC-11**.
+3. [x] Thinnest usable whole: the Results section on the class page between Scores and Students, following `?term`: summary line, ranked list, incomplete group with missing parts, and the AC-9 empty states; satisfies **AC-8**, **AC-9**.
+4. [x] Student breakdown panel opened from a row: subjects with parts, total, grade, remark, subject position, class average, highest, lowest, then overall figures; satisfies **AC-8**.
+5. [x] Component tests (`*.test.ts`, `createElement`, jsdom) for the section and the panel; visual check at 390px and 1280px with 20 subjects and 5 parts; satisfies **AC-8**, and **AC-1** to **AC-12** overall.
 
 ## Consequences
 

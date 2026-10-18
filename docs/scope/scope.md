@@ -19,7 +19,7 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 7 | Classes, subjects & grading rules | Release 1 | in-progress |
 | 8 | Enrol teachers & students | Release 1 | in-progress |
 | 9 | Score entry | Release 1 | done |
-| 10 | Results computation | Release 1 | in-progress |
+| 10 | Results computation | Release 1 | done |
 | 11 | Remarks & attendance | Release 1 | planned |
 | 22 | School principal and section heads | Release 1 | done |
 | 12 | Report card PDF | Release 1 | planned |
@@ -142,18 +142,18 @@ The teacher enters CA1, CA2, and Exam scores for every student in every subject 
 - [x] Test it: `/test score entry`
 Spec [0009](../specs/0009-score-entry/index.md) · code in `src/server/data/scores.ts`, `src/components/score-sheet/`, `src/app/[school]/classes/`, `src/app/admin/schools/[schoolId]/scores/`
 
-### 10. Results computation · in-progress · full
+### 10. Results computation · done · full
 The system works out each subject's total and grade, each subject's position, the class average, highest and lowest per subject, each student's overall total and average, and position in class (for example 5th of 32).
 **Done when:** results match a hand calculation for a sample class, ties share a position the way Nigerian schools expect (two students 3rd, next is 5th), and a missing score is handled clearly, never silently counted as zero.
 - [x] Design it (spec): `/architect results computation`
-- [ ] Build it: `/develop results computation`
-  - [ ] Pure rules and the hand calculated sample class tests (AC-1 to AC-7, AC-12)
-  - [ ] Class results loader in one snapshot, with access and database tests (AC-4, AC-7, AC-10, AC-11)
-  - [ ] Results section on the class page and the student breakdown panel (AC-8, AC-9)
-  - [ ] Component tests and visual check at 390px and 1280px (all ACs)
-- [ ] Verify it: `/check verify results computation`
-- [ ] Test it: `/test results computation`
-Spec [0010](../specs/0010-results-computation/index.md)
+- [x] Build it: `/develop results computation`
+  - [x] Pure rules and the hand calculated sample class tests (AC-1 to AC-7, AC-12)
+  - [x] Class results loader in one snapshot, with access and database tests (AC-4, AC-7, AC-10, AC-11)
+  - [x] Results section on the class page and the student breakdown panel (AC-8, AC-9)
+  - [x] Component tests and visual check at 390px and 1280px (all ACs)
+- [x] Verify it: `/check verify results computation`
+- [x] Test it: `/test results computation`
+Spec [0010](../specs/0010-results-computation/index.md) · code in `src/lib/results.ts`, `src/server/data/results.ts`, `src/app/[school]/classes/[classId]/` (results section and panel), preview `/design/results`
 
 ### 11. Remarks & attendance
 The teacher adds a comment per student, the principal's comment, times school opened, and times present.
