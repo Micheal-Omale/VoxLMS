@@ -4,7 +4,7 @@ import { refresh } from "next/cache";
 
 import { requestMeta } from "@/server/auth/request-meta";
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
-import { NoCurrentTerm, NotFound } from "@/server/data";
+import { NoCurrentTerm, NotFound, TermReleased } from "@/server/data";
 import type { SchoolContext } from "@/server/data/context";
 import { addGuardian, makePrimaryGuardian, type Relationship, saveGuardian, unlinkGuardian } from "@/server/data/guardians";
 import { addTeacher, saveTeacher, setFormTeacher, setStaffLeft } from "@/server/data/staff";
@@ -41,6 +41,7 @@ async function run<T extends { ok: boolean }>(schoolId: string, fn: (ctx: School
     if (result.ok) refresh();
     return result;
   } catch (error) {
+    if (error instanceof TermReleased) return { ok: false, field: "term", error: error.message };
     if (error instanceof NoCurrentTerm) return { ok: false, field: "term", error: "This school has no current term. Set one on the Session and terms page first." };
     if (error instanceof NotFound) return { ok: false, field: "id", error: `${WHAT[error.what] ?? "That record"} is no longer in this school. Refresh the page.` };
     // An id that isn't even an id (a tampered form) is "not found" too (AC-16).

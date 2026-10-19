@@ -4,6 +4,7 @@ import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import { classSortOrder } from "@/lib/class-name";
 import { normaliseNigerianPhone } from "@/lib/phone";
+import { DEFAULT_REMARK_BANDS } from "@/lib/remarks";
 
 import * as t from "../schema";
 import type { SeedDb } from "./client";
@@ -326,6 +327,14 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
     scoreRows.map((r) => ({ schoolId, saveId, enrolmentId: r.enrolmentId, classSubjectId: r.classSubjectId, componentId: r.componentId, oldValue: null, newValue: r.value, changedBy: SEED_USER })),
   );
 
+  // The principal's comment bands and a few JSS 2 Gold comments (spec 0011).
+  await tx.insert(t.headRemarkBand).values(DEFAULT_REMARK_BANDS.map((b) => ({ schoolId, ...b })));
+  await tx.insert(t.termReport).values([
+    { schoolId, enrolmentId: juniorEnrolments[0].id, teacherRemark: "Hardworking and well behaved.", updatedBy: SEED_USER },
+    { schoolId, enrolmentId: juniorEnrolments[2].id, teacherRemark: "A brilliant student. Keep it up.", headRemark: "An outstanding term. Well done, Tolulope.", updatedBy: SEED_USER },
+    { schoolId, enrolmentId: juniorEnrolments[3].id, teacherRemark: "Can do better with more effort. Should read more at home.", updatedBy: SEED_USER },
+  ]);
+
   return schoolId;
 }
 
@@ -336,7 +345,7 @@ export async function removeSchoolBySlug(db: SeedDb, slug: string) {
   const id = found.id;
   await db.transaction(async (tx) => {
     const ordered = [
-      t.scoreChange, t.score, t.rating, t.ratingTrait, t.termReport, t.studentElective,
+      t.scoreChange, t.score, t.rating, t.ratingTrait, t.termReport, t.headRemarkBand, t.studentElective,
       t.enrolment, t.studentGuardian, t.guardian, t.student, t.classTeacher, t.classSubject,
       t.staff, t.gradeBand, t.assessmentComponent, t.schoolSubject, t.schoolClass, t.term,
       t.academicSession, t.section,

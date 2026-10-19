@@ -15,6 +15,7 @@ import {
   saveScores,
   ScoreAboveMaximum,
   TermClosed,
+  TermReleased,
 } from "@/server/data";
 import type { SchoolContext } from "@/server/data/context";
 
@@ -69,6 +70,7 @@ export async function saveScoresAction(slug: string, input: SheetRef & { saveId:
       if (freshError instanceof NotFound || freshError instanceof NoCurrentTerm) return { kind: "notFound" };
       throw freshError;
     }
+    if (error instanceof TermReleased) return { kind: "closed" };
     if (error instanceof TermClosed) return { kind: "closed" };
     if (error instanceof ReadOnlySession) return { kind: "readOnly" };
     if (error instanceof InvalidScore) return { kind: "invalid", studentId: error.studentId, componentKey: error.componentKey };

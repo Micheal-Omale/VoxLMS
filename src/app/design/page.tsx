@@ -80,6 +80,9 @@ export default function DesignSystemPage() {
           <Button variant="outline" nativeButton={false} render={<Link href="/design/logo" />}>
             Logo guidelines
           </Button>
+          <Button variant="outline" nativeButton={false} render={<Link href="/design/report-card" prefetch={false} />}>
+            Report card PDF
+          </Button>
         </div>
       </header>
 

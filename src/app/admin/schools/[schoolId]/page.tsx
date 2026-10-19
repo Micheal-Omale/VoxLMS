@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ChevronLeftIcon, ChevronRightIcon, CircleCheckIcon, CircleIcon, ClipboardListIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, CircleCheckIcon, CircleIcon, ClipboardListIcon, TicketIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -176,6 +176,17 @@ async function SchoolOverview({ params }: { params: Params }) {
             <span className="font-bold">Scores</span>
             <span className="type-caption text-muted-foreground">
               {enrolled.currentTerm ? "Which classes still have subjects to score" : "Set the current term first"}
+            </span>
+          </span>
+          <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+        </Link>
+        {/* Spec 0014, AC-1. */}
+        <Link href={`${base}/results`} className="flex items-center gap-3 rounded-xl border border-rule bg-card px-4 py-4 transition-colors hover:bg-accent">
+          <TicketIcon aria-hidden="true" className="size-5 shrink-0 text-primary" />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="font-bold">Results online</span>
+            <span className="type-caption text-muted-foreground">
+              {enrolled.currentTerm ? "Release results to parents and print PIN slips" : "Set the current term first"}
             </span>
           </span>
           <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />

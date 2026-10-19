@@ -3,6 +3,7 @@ import "server-only";
 import { and, asc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 
 import { account, classTeacher, school, schoolClass, section, staff, user } from "@/db/schema";
+import { type TeacherInput, teacherProblem, tidy } from "@/lib/enrolment-rules";
 import { normaliseNigerianPhone } from "@/lib/phone";
 import type { RequestMeta } from "@/server/auth/audit";
 import { createAuth } from "@/server/auth/config";
@@ -11,7 +12,7 @@ import { type AuthDeps, createLoginForStaff, setLoginEnabled } from "@/server/au
 import type { Executor, SchoolContext } from "./context";
 import { resolveSessions } from "./curriculum";
 import { NotFound } from "./errors";
-import { assertTeam, type FormResult, type NeedsConfirm, tidy, violatedConstraint } from "./team";
+import { assertTeam, type FormResult, type NeedsConfirm, violatedConstraint } from "./team";
 import { getCurrentTerm } from "./terms";
 
 // Teachers and their form classes (spec 0008, AC-1 to AC-4). Our team only.
@@ -23,16 +24,6 @@ export type ActorMeta = { actorUserId: string | null; meta?: RequestMeta };
 const authOn = (db: Executor): AuthDeps => ({ auth: createAuth(db, { withNextCookies: false }), db });
 
 const displayName = (title: string | null, fullName: string) => [title, fullName].filter(Boolean).join(" ");
-
-type TeacherInput = { title?: string | null; fullName: string };
-
-function teacherProblem(input: TeacherInput): { ok: false; field: string; error: string } | null {
-  const title = tidy(input.title);
-  const name = tidy(input.fullName);
-  if (title.length > 20) return { ok: false, field: "title", error: "Keep the title short, like Mrs or Dr (up to 20 characters)." };
-  if (name.length < 3 || name.length > 80) return { ok: false, field: "fullName", error: "Type the teacher's full name, 3 to 80 characters." };
-  return null;
-}
 
 /** Refuses a phone already used by staff in this school; a leaver is pointed to "Mark as active again". */
 async function staffPhoneProblem(db: Executor, schoolId: string, phone: string, exceptStaffId?: string) {
@@ -254,10 +245,11 @@ export async function setFormTeacher(ctx: SchoolContext, input: { classId: strin
     if (member.status !== "active") {
       return { ok: false as const, field: "formTeacher", error: `${displayName(member.title, member.fullName)} has left the school, so can’t head ${cls.name}.` };
     }
+    // Chosen by hand, so an import's undo never removes it (spec 0013, AC-15).
     await tx
       .insert(classTeacher)
       .values({ schoolId: ctx.schoolId, sessionId: session.id, classId: cls.id, staffId: member.id })
-      .onConflictDoUpdate({ target: [classTeacher.sessionId, classTeacher.classId], set: { staffId: member.id } });
+      .onConflictDoUpdate({ target: [classTeacher.sessionId, classTeacher.classId], set: { staffId: member.id, importRunId: null } });
     return { ok: true as const };
   });
 }

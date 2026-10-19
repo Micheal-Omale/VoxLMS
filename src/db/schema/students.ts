@@ -18,7 +18,7 @@ import {
 
 import { createdAt, id, updatedAt } from "./columns";
 import { gender, guardianRelationship, studentStatus } from "./enums";
-import { academicSession, asset, school, schoolClass, schoolSubject, term } from "./school";
+import { academicSession, asset, importRunLink, school, schoolClass, schoolSubject, term } from "./school";
 
 const schoolId = () =>
   uuid("school_id")
@@ -43,6 +43,8 @@ export const student = pgTable(
     photoAssetId: uuid("photo_asset_id"),
     status: studentStatus("status").notNull().default("active"),
     leftOn: date("left_on"),
+    /** The import that added them (spec 0013); null when typed in. */
+    importRunId: uuid("import_run_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -60,6 +62,8 @@ export const student = pgTable(
       columns: [t.schoolId, t.photoAssetId],
       foreignColumns: [asset.schoolId, asset.id],
     }),
+    importRunLink("student_import_run_fk", t.schoolId, t.importRunId),
+    index("student_import_run_idx").on(t.importRunId).where(sql`${t.importRunId} is not null`),
   ],
 );
 
@@ -74,6 +78,8 @@ export const guardian = pgTable(
     phone: text("phone").notNull(),
     whatsappConsent: boolean("whatsapp_consent").notNull().default(false),
     consentRecordedAt: timestamp("consent_recorded_at", { withTimezone: true }),
+    /** The import that created this parent (spec 0013); a parent it only linked keeps null. */
+    importRunId: uuid("import_run_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -84,6 +90,8 @@ export const guardian = pgTable(
       "guardian_consent_has_date",
       sql`not ${t.whatsappConsent} or ${t.consentRecordedAt} is not null`,
     ),
+    importRunLink("guardian_import_run_fk", t.schoolId, t.importRunId),
+    index("guardian_import_run_idx").on(t.importRunId).where(sql`${t.importRunId} is not null`),
   ],
 );
 

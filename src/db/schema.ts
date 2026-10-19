@@ -5,3 +5,4 @@ export * from "./schema/school";
 export * from "./schema/students";
 export * from "./schema/results";
 export * from "./schema/auth";
+export * from "./schema/pins";

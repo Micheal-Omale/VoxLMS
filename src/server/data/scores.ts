@@ -30,6 +30,7 @@ import {
   ScoreAboveMaximum,
   TermClosed,
 } from "./errors";
+import { assertTermsOpen } from "./release";
 import { assertTeam } from "./team";
 import { getCurrentTerm } from "./terms";
 
@@ -258,6 +259,7 @@ export async function saveScores(
     // 2. Resolve parts through the class's section and the subject's session.
     const offer = await loadClassSubject(tx, ctx.schoolId, input.termId, input.classSubjectId);
     await assertClassAccess({ ...ctx, db: tx }, { classId: offer.classId, sessionId: offer.sessionId });
+    await assertTermsOpen(tx, ctx.schoolId, [offer.termId]);
     // Only the current term takes scores (spec 0009, AC-6). The flag is read from
     // this locked row, never from the unlocked join above: setCurrentTerm updates
     // this row, so a save racing a term switch lands before it or is refused after.
@@ -547,7 +549,7 @@ export async function getScoreHistory(ctx: SchoolContext, input: { termId: strin
 
 export type ScoreHistory = Awaited<ReturnType<typeof getScoreHistory>>;
 
-function changedByName(row: { userName: string | null; userRole: string | null; staffTitle: string | null; staffName: string | null }) {
+export function changedByName(row: { userName: string | null; userRole: string | null; staffTitle: string | null; staffName: string | null }) {
   if (row.userRole === "admin") return `VoxLMS team (${row.userName ?? "unknown"})`;
   if (row.staffName) return [row.staffTitle, row.staffName].filter(Boolean).join(" ");
   return row.userName ?? "Someone no longer on the staff";

@@ -8,11 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { defaultScale, defaultSplit } from "@/lib/grading-presets";
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
 import { getGradingSetup } from "@/server/data/grading";
+import { getRemarkBands } from "@/server/data/remarks";
 import { getSchoolSetup } from "@/server/data/setup";
 
 import { CopyBanner } from "../copy-banner";
 import { SessionSwitcher } from "../session-switcher";
 import { SetupHeader } from "../setup-header";
+import { RemarkBandsEditor } from "./remark-bands-editor";
 import { ScaleEditor } from "./scale-editor";
 import { SplitEditor } from "./split-editor";
 
@@ -33,7 +35,11 @@ async function Grading({ params, searchParams }: { params: Params; searchParams:
   const { schoolId } = await params;
   const requested = (await searchParams).session;
   const { ctx } = await requireTeamSchoolContext(schoolId);
-  const [{ school }, setup] = await Promise.all([getSchoolSetup(ctx), getGradingSetup(ctx, { sessionId: typeof requested === "string" ? requested : null })]);
+  const [{ school }, setup, remarkBands] = await Promise.all([
+    getSchoolSetup(ctx),
+    getGradingSetup(ctx, { sessionId: typeof requested === "string" ? requested : null }),
+    getRemarkBands(ctx),
+  ]);
   const { sessions, session, currentSessionId, copyFrom, sections } = setup;
   const base = `/admin/schools/${school.id}`;
 
@@ -117,6 +123,19 @@ async function Grading({ params, searchParams }: { params: Params; searchParams:
           })}
         </>
       )}
+
+      <section aria-labelledby="remark-bands" className="flex flex-col gap-4 rounded-xl border border-rule bg-card p-4 sm:p-6">
+        <div className="flex flex-col gap-1">
+          <h2 id="remark-bands" className="type-title">
+            Principal’s comment bands
+          </h2>
+          <p className="max-w-2xl text-muted-foreground">
+            The comment each student gets from the head who signs their card, chosen by their average once every score is in. One set for the whole school, in
+            every term. Form masters can type over it for one student.
+          </p>
+        </div>
+        <RemarkBandsEditor key={JSON.stringify(remarkBands)} schoolId={school.id} saved={remarkBands} />
+      </section>
     </>
   );
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 
 import { academicSession, enrolment, term } from "@/db/schema";
 
@@ -23,27 +23,31 @@ export type CarriedForward = { carried: number; classOff: number };
 /**
  * Makes one term current and clears the flag on the school's other terms.
  * Moving forward within a session carries class lists into the new term in
- * the same transaction (spec 0008, AC-13); an earlier term, or a term of
- * another session, copies nothing.
+ * the same transaction (spec 0008, AC-13); an earlier term, a term of
+ * another session, or a released term copies nothing (spec 0014, AC-4).
+ * Locks the school's term rows in id order first to avoid deadlocks.
  */
 export async function setCurrentTerm(ctx: SchoolContext, input: { termId: string }): Promise<CarriedForward> {
   assertNotTeacher(ctx, "Term");
   assertWritable(ctx);
   return ctx.db.transaction(async (tx) => {
-    const [target] = await tx
-      .select({ id: term.id, sessionId: term.sessionId, number: term.number })
+    const termRows = await tx
+      .select({ id: term.id, sessionId: term.sessionId, number: term.number, isCurrent: term.isCurrent, releasedAt: term.resultsReleasedAt })
       .from(term)
-      .where(and(eq(term.schoolId, ctx.schoolId), eq(term.id, input.termId)));
+      .where(eq(term.schoolId, ctx.schoolId))
+      .orderBy(asc(term.id))
+      .for("update");
+
+    const target = termRows.find((t) => t.id === input.termId);
     if (!target) throw new NotFound("Term");
-    // Updating the old current term locks it, so a student save holding it (share) finishes first.
-    const [previous] = await tx
-      .update(term)
-      .set({ isCurrent: false })
-      .where(and(eq(term.schoolId, ctx.schoolId), eq(term.isCurrent, true)))
-      .returning({ sessionId: term.sessionId, number: term.number });
+
+    const previous = termRows.find((t) => t.isCurrent);
+    if (previous && previous.id !== target.id) {
+      await tx.update(term).set({ isCurrent: false }).where(eq(term.id, previous.id));
+    }
     await tx.update(term).set({ isCurrent: true }).where(eq(term.id, target.id));
 
-    const forward = !previous || (previous.sessionId === target.sessionId && previous.number < target.number);
+    const forward = !target.releasedAt && (!previous || (previous.sessionId === target.sessionId && previous.number < target.number));
     return forward ? carryForward(tx, ctx.schoolId, target) : { carried: 0, classOff: 0 };
   });
 }

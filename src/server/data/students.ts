@@ -9,6 +9,7 @@ import {
   classTeacher,
   enrolment,
   rating,
+  resultPin,
   school,
   schoolClass,
   schoolSubject,
@@ -22,14 +23,16 @@ import {
   term,
   termReport,
 } from "@/db/schema";
+import { normaliseAdmissionNo, readStudent, type StudentFields } from "@/lib/enrolment-rules";
 import { formatStudentNo } from "@/lib/student-number";
 
 import { assertNotTeacher, assertWritable } from "./access";
 import type { Executor, SchoolContext } from "./context";
 import { DataError, NoCurrentTerm, NotFound } from "./errors";
 import { parentsOf, unlinkIn } from "./guardians";
+import { assertTermsOpen } from "./release";
 import { readJpegSize } from "./setup";
-import { assertTeam, type FormResult, lagosToday, type NeedsConfirm, plural, tidy, violatedConstraint } from "./team";
+import { assertTeam, type FormResult, lagosToday, type NeedsConfirm, plural, violatedConstraint } from "./team";
 
 /**
  * Hands out the next `count` student numbers for the school (spec 0003, AC-11).
@@ -54,14 +57,10 @@ export async function allocateStudentNumbers(ctx: SchoolContext, input: { count:
 // Enrolling students class by class (spec 0008, AC-4 to AC-13). Our team only;
 // the admin lists always work on the current term.
 
-type Gender = "male" | "female";
 type StudentRef = { surname: string; otherNames: string };
 
 /** As on the school register: OKAFOR Chinedu. */
-const registerName = (s: StudentRef) => `${s.surname.toUpperCase()} ${s.otherNames}`;
-
-/** How admission numbers are compared (AC-6): case and spaces ignored, as the database's unique index does. */
-export const normaliseAdmissionNo = (value: string) => value.toUpperCase().replace(/\s/g, "");
+export const registerName = (s: StudentRef) => `${s.surname.toUpperCase()} ${s.otherNames}`;
 
 const ADMISSION_KEY = "student_school_admission_norm_key";
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,29 +86,11 @@ const admissionTaken = (admissionNo: string, holder: StudentRef) => ({
   error: `${admissionNo} already belongs to ${registerName(holder)}.`,
 });
 
-type StudentFields = { surname: string; otherNames: string; gender: string; admissionNo?: string | null; house?: string | null };
-
-/** The trimmed values to save, or the first field to fix. */
-function readStudent(input: StudentFields):
-  | { ok: true; surname: string; otherNames: string; gender: Gender; admissionNo: string | null; house: string | null }
-  | { ok: false; field: string; error: string } {
-  const surname = tidy(input.surname);
-  const otherNames = tidy(input.otherNames);
-  const admissionNo = tidy(input.admissionNo) || null;
-  const house = tidy(input.house) || null;
-  if (surname.length < 2 || surname.length > 40) return { ok: false, field: "surname", error: "Type the surname, 2 to 40 characters." };
-  if (otherNames.length < 2 || otherNames.length > 80) return { ok: false, field: "otherNames", error: "Type the other names, 2 to 80 characters." };
-  if (input.gender !== "male" && input.gender !== "female") return { ok: false, field: "gender", error: "Choose boy or girl." };
-  if (admissionNo && admissionNo.length > 30) return { ok: false, field: "admissionNo", error: "Keep the admission number to 30 characters." };
-  if (house && house.length > 30) return { ok: false, field: "house", error: "Keep the house to 30 characters." };
-  return { ok: true, surname, otherNames, gender: input.gender, admissionNo, house };
-}
-
 /**
  * The current term, share locked inside the caller's transaction (AC-13): a
  * term switch waits for this save, or this save waits and reads the new term.
  */
-async function lockCurrentTerm(tx: Executor, schoolId: string) {
+export async function lockCurrentTerm(tx: Executor, schoolId: string) {
   // A switch that commits while we wait hides the old row; reading again finds the new one.
   for (let attempt = 0; attempt < 2; attempt++) {
     const [row] = await tx
@@ -294,11 +275,11 @@ export async function getClassRoster(ctx: SchoolContext, input: { classId: strin
 
 export type ClassRoster = Awaited<ReturnType<typeof getClassRoster>>;
 
-/** Students with any results record in any term: scores, score history, remarks or ratings (AC-12). */
-async function studentsWithRecords(db: Executor, studentIds: string[]) {
+/** Students with any results record in any term: scores, score history, remarks, ratings or PIN slips (AC-12, spec 0014 AC-4). */
+export async function studentsWithRecords(db: Executor, studentIds: string[]) {
   if (studentIds.length === 0) return new Set<string>();
   const holders = await Promise.all(
-    [score, scoreChange, termReport, rating].map((table) =>
+    [score, scoreChange, termReport, rating, resultPin].map((table) =>
       db
         .selectDistinct({ studentId: enrolment.studentId })
         .from(table)
@@ -328,6 +309,7 @@ export async function addStudent(
   try {
     return await ctx.db.transaction(async (tx): Promise<AddStudentResult> => {
       const current = await lockCurrentTerm(tx, ctx.schoolId);
+      await assertTermsOpen(tx, ctx.schoolId, [current.id]);
       const [cls] = await tx
         .select({ id: schoolClass.id, name: schoolClass.name, sectionId: schoolClass.sectionId, isActive: schoolClass.isActive })
         .from(schoolClass)
@@ -494,6 +476,7 @@ export async function moveStudent(ctx: SchoolContext, input: { enrolmentId: stri
   assertTeam(ctx.actor);
   return ctx.db.transaction(async (tx) => {
     const current = await lockCurrentTerm(tx, ctx.schoolId);
+    await assertTermsOpen(tx, ctx.schoolId, [current.id]);
     const [row] = await tx
       .select({
         id: enrolment.id,
@@ -566,6 +549,7 @@ export async function setStudentLeft(ctx: SchoolContext, input: { studentId: str
   assertTeam(ctx.actor);
   return ctx.db.transaction(async (tx) => {
     const current = await lockCurrentTerm(tx, ctx.schoolId);
+    await assertTermsOpen(tx, ctx.schoolId, [current.id]);
     if (input.leftOn !== null) {
       if (!ISO_DATE.test(input.leftOn)) return { ok: false as const, field: "leftOn", error: "Choose the date they left." };
       if (input.leftOn > lagosToday()) return { ok: false as const, field: "leftOn", error: "The date they left can’t be in the future." };
@@ -612,7 +596,8 @@ export async function removeStudent(ctx: SchoolContext, input: { studentId: stri
         .for("update");
       if (!found) throw new NotFound("Student");
       // Locked, so a score saved meanwhile waits and then fails its link.
-      await tx.select({ id: enrolment.id }).from(enrolment).where(eq(enrolment.studentId, found.id)).for("update");
+      const enrolled = await tx.select({ id: enrolment.id, termId: enrolment.termId }).from(enrolment).where(eq(enrolment.studentId, found.id)).for("update");
+      await assertTermsOpen(tx, ctx.schoolId, enrolled.map((e) => e.termId));
       if ((await studentsWithRecords(tx, [found.id])).size > 0) throw new HasRecords();
 
       const links = await tx.select({ guardianId: studentGuardian.guardianId }).from(studentGuardian).where(eq(studentGuardian.studentId, found.id));
@@ -647,6 +632,7 @@ export async function saveClassElectives(
   }
   return ctx.db.transaction(async (tx) => {
     const current = await lockCurrentTerm(tx, ctx.schoolId);
+    await assertTermsOpen(tx, ctx.schoolId, [current.id]);
     const [cls] = await tx
       .select({ id: schoolClass.id, name: schoolClass.name })
       .from(schoolClass)

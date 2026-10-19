@@ -17,8 +17,7 @@ export function assertTeam(actor: Actor) {
   if (actor.kind !== "admin" || actor.readOnly) throw new NotFound("School");
 }
 
-/** Trimmed, with inner runs of spaces collapsed to one. */
-export const tidy = (value: string | null | undefined) => (value ?? "").trim().replace(/\s+/g, " ");
+export { tidy } from "@/lib/enrolment-rules";
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 

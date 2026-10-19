@@ -3,12 +3,13 @@ import "server-only";
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 
 import { enrolment, guardian, schoolClass, student, studentGuardian, term } from "@/db/schema";
+import { type GuardianFields, guardianProblem, nextGuardianLink, type Relationship, tidy } from "@/lib/enrolment-rules";
 import { normaliseNigerianPhone } from "@/lib/phone";
 
 import { assertNotTeacher, assertWritable } from "./access";
 import type { Executor, SchoolContext } from "./context";
 import { DataError, NotFound } from "./errors";
-import { assertTeam, type FormResult, type NeedsConfirm, tidy } from "./team";
+import { assertTeam, type FormResult, type NeedsConfirm } from "./team";
 
 export class TooManyGuardians extends DataError {
   constructor() {
@@ -22,8 +23,7 @@ export class AlreadyLinked extends DataError {
   }
 }
 
-export type Relationship = "mother" | "father" | "guardian";
-const RELATIONSHIPS: Relationship[] = ["mother", "father", "guardian"];
+export type { Relationship };
 
 /**
  * Links a parent to a child (spec 0003, AC-9; spec 0008, AC-8): at most two
@@ -48,15 +48,15 @@ export async function linkGuardian(ctx: SchoolContext, input: { studentId: strin
   if (!parent) throw new NotFound("Guardian");
 
   const links = await ctx.db.select({ guardianId: studentGuardian.guardianId }).from(studentGuardian).where(eq(studentGuardian.studentId, child.id));
-  if (links.some((l) => l.guardianId === parent.id)) throw new AlreadyLinked();
-  if (links.length >= 2) throw new TooManyGuardians();
+  const link = nextGuardianLink(links, parent.id);
+  if (!link.ok) throw link.reason === "already_linked" ? new AlreadyLinked() : new TooManyGuardians();
 
   await ctx.db.insert(studentGuardian).values({
     schoolId: ctx.schoolId,
     studentId: child.id,
     guardianId: parent.id,
     relationship: input.relationship,
-    isPrimary: links.length === 0,
+    isPrimary: link.isPrimary,
   });
 }
 
@@ -102,17 +102,6 @@ export async function findGuardiansByPhone(ctx: SchoolContext, input: { phone: s
         .map((c) => ({ studentId: c.studentId, name: `${c.surname} ${c.otherNames}`, className: c.className })),
     }))
     .filter((p) => !p.children.some((c) => c.studentId === input.exceptStudentId));
-}
-
-type GuardianFields = { fullName: string; phone: string; relationship: Relationship };
-
-function guardianProblem(input: Partial<GuardianFields>, need: { details: boolean }): { ok: false; field: string; error: string } | null {
-  if (!RELATIONSHIPS.includes(input.relationship as Relationship)) return { ok: false, field: "relationship", error: "Choose mother, father or guardian." };
-  if (!need.details) return null;
-  const name = tidy(input.fullName);
-  if (name.length < 3 || name.length > 80) return { ok: false, field: "fullName", error: "Type the parent's full name, 3 to 80 characters." };
-  if (!normaliseNigerianPhone(input.phone ?? "")) return { ok: false, field: "phone", error: "That isn't a Nigerian mobile number. Type it like 0803 123 4567." };
-  return null;
 }
 
 const tooMany = { ok: false as const, field: "parent", error: "A student can have at most two parents or guardians. Remove one first." };

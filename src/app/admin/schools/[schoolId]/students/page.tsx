@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ChevronRightIcon, UsersIcon } from "lucide-react";
+import { ChevronRightIcon, FileSpreadsheetIcon, UsersIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +40,15 @@ async function Students({ params }: { params: Params }) {
         schoolId={school.id}
         schoolName={school.name}
         title="Students"
-        intro="Type each class register in, one student at a time, and give each class its form master. Lists carry forward on their own when the next term of the session becomes current."
+        intro="Type each class register in, or import the whole school from Excel, and give each class its form master. Lists carry forward on their own when the next term of the session becomes current."
+        actions={
+          classes.length > 0 && (
+            <Button variant="outline" nativeButton={false} render={<Link href={`${base}/students/import`} />}>
+              <FileSpreadsheetIcon data-icon="inline-start" />
+              Import from Excel
+            </Button>
+          )
+        }
       />
 
       {!currentTerm && (

@@ -5,11 +5,14 @@ import {
   check,
   date,
   foreignKey,
+  index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   smallint,
   text,
+  timestamp,
   unique,
   uniqueIndex,
   uuid,
@@ -17,7 +20,7 @@ import {
 
 import { bytea, createdAt, id, updatedAt } from "./columns";
 import { user } from "./auth";
-import { assetKind, plan, stage, staffRole, staffStatus } from "./enums";
+import { assetKind, importKind, plan, stage, staffRole, staffStatus } from "./enums";
 import { standardLevel, standardSubject } from "./standard";
 
 // School setup (spec 0003). Every table carries school_id, and every link
@@ -50,6 +53,8 @@ export const school = pgTable(
     principalSignatureAssetId: uuid("principal_signature_asset_id"),
     /** Last student number handed out; only ever increases (see allocateStudentNumbers). */
     studentNoCounter: integer("student_no_counter").notNull().default(0),
+    /** Last PIN slip serial handed out (spec 0014, AC-9); only ever increases. */
+    pinSerialCounter: integer("pin_serial_counter").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -141,11 +146,15 @@ export const term = pgTable(
     nextTermBeginsOn: date("next_term_begins_on"),
     daysOpened: smallint("days_opened"),
     isCurrent: boolean("is_current").notNull().default(false),
+    /** Released to parents (spec 0014): the result PIN page shows this term, and its figures are locked. */
+    resultsReleasedAt: timestamp("results_released_at", { withTimezone: true }),
+    resultsReleasedBy: text("results_released_by").references((): AnyPgColumn => user.id),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     check("term_number_range", sql`${t.number} between 1 and 3`),
+    check("term_released_together", sql`(${t.resultsReleasedAt} is null) = (${t.resultsReleasedBy} is null)`),
     check("term_days_opened_positive", sql`${t.daysOpened} is null or ${t.daysOpened} >= 0`),
     unique("term_session_number_key").on(t.sessionId, t.number),
     unique("term_school_id_key").on(t.schoolId, t.id),
@@ -158,6 +167,59 @@ export const term = pgTable(
     }),
   ],
 );
+
+/** What one confirmed import did (spec 0013, AC-13). */
+export type ImportCounts = {
+  added: number;
+  alreadyHere: number;
+  probablyHereSkipped: number;
+  problems: number;
+  parentsCreated: number;
+  parentsLinked: number;
+  formMastersSet: number;
+  needsConfirmSkipped: number;
+};
+
+/**
+ * One confirmed Excel import (spec 0013). Never deleted, so it stays as the
+ * record of who imported what. The rows it added carry its id, so it can be
+ * undone; the file itself is never stored.
+ */
+export const importRun = pgTable(
+  "import_run",
+  {
+    id: id(),
+    schoolId: schoolId(),
+    kind: importKind("kind").notNull(),
+    fileName: text("file_name").notNull(),
+    /** Null for a teacher import made while the school had no current term. */
+    termId: uuid("term_id"),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => user.id),
+    createdAt: createdAt(),
+    counts: jsonb("counts").$type<ImportCounts>().notNull(),
+    /** The logins this run made new (never reused ones), so undo removes only these. */
+    createdLogins: text("created_logins").array().notNull().default(sql`'{}'::text[]`),
+    undoneAt: timestamp("undone_at", { withTimezone: true }),
+    undoneBy: text("undone_by").references(() => user.id),
+  },
+  (t) => [
+    unique("import_run_school_id_key").on(t.schoolId, t.id),
+    check("import_run_file_name_length", sql`char_length(${t.fileName}) between 1 and 200`),
+    check("import_run_undone_together", sql`(${t.undoneAt} is null) = (${t.undoneBy} is null)`),
+    index("import_run_list_idx").on(t.schoolId, t.kind, t.createdAt.desc()),
+    foreignKey({
+      name: "import_run_term_fk",
+      columns: [t.schoolId, t.termId],
+      foreignColumns: [term.schoolId, term.id],
+    }),
+  ],
+);
+
+/** The composite link from a row an import added back to its run, in the same school. */
+export const importRunLink = (name: string, schoolIdColumn: AnyPgColumn, runColumn: AnyPgColumn) =>
+  foreignKey({ name, columns: [schoolIdColumn, runColumn], foreignColumns: [importRun.schoolId, importRun.id] });
 
 /** A class arm, e.g. JSS 2 Gold. Carries over between sessions. */
 export const schoolClass = pgTable(
@@ -325,6 +387,8 @@ export const staff = pgTable(
     status: staffStatus("status").notNull().default("active"),
     /** Their VoxLMS login (spec 0004); one login can be staff in several schools. */
     userId: text("user_id").references((): AnyPgColumn => user.id),
+    /** The import that added them (spec 0013); null when typed in. */
+    importRunId: uuid("import_run_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -332,6 +396,8 @@ export const staff = pgTable(
     unique("staff_school_phone_key").on(t.schoolId, t.phone),
     unique("staff_school_id_key").on(t.schoolId, t.id),
     unique("staff_school_user_key").on(t.schoolId, t.userId),
+    importRunLink("staff_import_run_fk", t.schoolId, t.importRunId),
+    index("staff_import_run_idx").on(t.importRunId).where(sql`${t.importRunId} is not null`),
   ],
 );
 
@@ -344,10 +410,14 @@ export const classTeacher = pgTable(
     sessionId: uuid("session_id").notNull(),
     classId: uuid("class_id").notNull(),
     staffId: uuid("staff_id").notNull(),
+    /** The import that set this form master (spec 0013); cleared when changed by hand. */
+    importRunId: uuid("import_run_id"),
     createdAt: createdAt(),
   },
   (t) => [
     unique("class_teacher_session_class_key").on(t.sessionId, t.classId),
+    importRunLink("class_teacher_import_run_fk", t.schoolId, t.importRunId),
+    index("class_teacher_import_run_idx").on(t.importRunId).where(sql`${t.importRunId} is not null`),
     foreignKey({
       name: "class_teacher_session_fk",
       columns: [t.schoolId, t.sessionId],

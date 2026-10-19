@@ -20,15 +20,15 @@ A results and report card system for Nigerian primary and secondary schools. Tea
 | 8 | Enrol teachers & students | Release 1 | in-progress |
 | 9 | Score entry | Release 1 | done |
 | 10 | Results computation | Release 1 | done |
-| 11 | Remarks & attendance | Release 1 | planned |
+| 11 | Remarks | Release 1 | in-progress |
 | 22 | School principal and section heads | Release 1 | done |
-| 12 | Report card PDF | Release 1 | planned |
-| 13 | Excel import | Release 2 | planned |
+| 12 | Report card PDF | Release 1 | in-progress |
+| 13 | Excel import | Release 2 | in-progress |
 | 14 | Behaviour & skills ratings | Release 2 | planned |
 | 15 | Single student reprint | Release 2 | planned |
 | 16 | Class broadsheet | Release 2 | planned |
 | 17 | Launch readiness | Release 2 | planned |
-| 21 | Result PIN checker | Release 3 | planned |
+| 21 | Result PIN checker | Release 3 | in-progress |
 | 18 | Third term cumulative & promotion | Release 4 | planned |
 | 19 | Send results on WhatsApp | Release 5 | planned |
 | 20 | Onboard more schools | Release 6 | planned |
@@ -155,10 +155,19 @@ The system works out each subject's total and grade, each subject's position, th
 - [x] Test it: `/test results computation`
 Spec [0010](../specs/0010-results-computation/index.md) · code in `src/lib/results.ts`, `src/server/data/results.ts`, `src/app/[school]/classes/[classId]/` (results section and panel), preview `/design/results`
 
-### 11. Remarks & attendance
-The teacher adds a comment per student, the principal's comment, times school opened, and times present.
-**Done when:** remarks and attendance save per student per term and appear on the report card.
-- [ ] Build it: `/develop remarks & attendance`
+### 11. Remarks · in-progress
+The teacher adds a comment per student; the principal's comment fills itself in from the student's average and can be typed over. Attendance is deferred (spec 0011).
+**Done when:** remarks save per student per term and appear on the report card.
+- [x] Design it (spec): `/architect remarks & attendance`
+- [x] Build it: `/develop remarks`
+  - [x] Comment bands migration and the pure rules: tidy text, automatic comment by average (AC-3, AC-4, AC-10)
+  - [x] Data: load in one snapshot with results, save with closed term, conflict and stale checks (AC-5 to AC-8, AC-11, AC-12)
+  - [x] Remarks sheet and the class page Remarks section, then draft, conflicts and read only terms (AC-1 to AC-9, AC-12)
+  - [x] Our team's comment bands editor on the Grading page (AC-10)
+  - [x] Component tests and visual check at 390px and 1280px (all ACs)
+- [ ] Verify it: `/check verify remarks`
+- [ ] Test it: `/test remarks`
+Spec [0011](../specs/0011-remarks/index.md) · code in `src/lib/remarks.ts`, `src/server/data/remarks.ts`, `src/components/remarks-sheet/`, `src/app/[school]/classes/[classId]/remarks/`
 
 ### 22. School principal and section heads · done
 Each school has one principal (title, name, signature), set once on School details. A section may have its own head (for example a primary head teacher), who then signs that section's report cards instead. Names and signatures are fixed in place, with no history for now. Comes before #12, which prints the signature. From spec 0007.
@@ -173,19 +182,37 @@ Each school has one principal (title, name, signature), set once on School detai
 - [x] Test it: `/test school principal and section heads`
 Spec [0007](../specs/0007-school-principal-section-heads/index.md) · code in `src/server/data/setup.ts`, `src/app/admin/schools/[schoolId]/details/`, `src/app/admin/schools/[schoolId]/sections/`
 
-### 12. Report card PDF · needs a decision
+### 12. Report card PDF · in-progress
 The standard Nigerian report card for the whole class as one file, ready to print. Shows the school logo and signature on the school logo plan, or our branding ("Powered by") on the basic plan.
 **Done when:** the teacher downloads one PDF with exactly one A4 page per student; it reads clearly when printed in black and white and photocopied; nothing spills onto a second page even with the most subjects any class takes.
-- [ ] Design it (spec): `/architect report card PDF`
+- [x] Design it (spec): `/architect report card PDF`
+- [x] Build it: `/develop report card PDF`
+  - [x] Font, react-pdf setup and the pure card model: readiness, register order, every printed string (AC-2 to AC-7, AC-9)
+  - [x] Data: one snapshot loader for results, remarks, school, signer and images, with access tests (AC-11, AC-12)
+  - [x] The card document, the download route and the Report cards section on the class page (AC-1 to AC-8, AC-12)
+  - [x] Results day guards: page count check, worst case fit, file size and race tests (AC-2, AC-10, AC-13)
+  - [x] Preview, component tests, and the black and white print and photocopy check (AC-1, AC-14, all ACs)
+- [ ] Verify it: `/check verify report card PDF`
+- [ ] Test it: `/test report card PDF`
+Spec [0012](../specs/0012-report-card-pdf/index.md) · code in `src/lib/report-card.ts`, `src/server/data/report-cards.ts`, `src/components/report-card/`, `src/app/[school]/classes/[classId]/report-cards/`
 
 ## Release 2: Ready for results day
 
 Everything the pilot school needs to use it for real at the end of First Term.
 
-### 13. Excel import · needs a decision
+### 13. Excel import · in-progress
 Our team uploads the school's student and teacher lists from Excel instead of typing them in, with a check before anything is saved.
 **Done when:** our team uploads a sheet, sees a preview listing rows with problems (missing class, repeated admission number, bad phone number), fixes them, confirms, and every valid row is saved.
-- [ ] Design it (spec): `/architect excel import`
+- [x] Design it (spec): `/architect excel import`
+- [ ] Build it: `/develop excel import`
+  - [x] Import run migration and the pure import core (headers, cells, CSV, names, classes, shared field checks) (AC-2 to AC-5, AC-11, AC-13)
+  - [x] Student import end to end: read, preview, confirm, result, on the Students page (AC-2 to AC-10, AC-16)
+  - [ ] Templates, recent imports and undo for student runs (AC-1, AC-13, AC-14)
+  - [ ] Teacher import with logins and form classes, and its undo (AC-1, AC-11, AC-12, AC-15)
+  - [ ] Tests for every scenario (AC-1 to AC-16)
+- [ ] Verify it: `/check verify excel import`
+- [ ] Test it: `/test excel import`
+Spec [0013](../specs/0013-excel-import/index.md) · code in `src/lib/import/`, `src/server/import/`, `src/server/data/imports.ts`, `src/app/admin/schools/[schoolId]/import/`, `students/import/`, `staff/import/`
 
 ### 14. Behaviour & skills ratings
 The teacher rates each student 1 to 5 on behaviour (punctuality, neatness, politeness and similar) and skills (handwriting, sports, crafts and similar), on one quick screen for the class.
@@ -211,10 +238,19 @@ What must be true before the school pays and uses it: hosting that allows commer
 
 Parents check results online from Second Term 2026/2027 (around April 2027). First Term results go out on paper as planned.
 
-### 21. Result PIN checker · needs a decision · full
+### 21. Result PIN checker · full
 Each student gets one PIN per term, printed on a slip the school hands out (for example, only once fees are paid). A parent types the 12 digit PIN on one public result page and sees that child's result for that term, as often as they like, and can download the report card. No admission number or account is needed. PINs are never stored readable, guessing is throttled, results show only once the school releases them, and a lost slip is replaced with a new PIN that kills the old one. The school can see which slips were issued and used.
 **Done when:** a parent with a valid PIN sees exactly one child's released result for one term and nothing else; an unreleased term, a wrong PIN, or a replaced PIN shows a clear message; repeated wrong guesses are slowed down; the school prints PIN slips for a whole class and replaces a lost one.
-- [ ] Design it (spec): `/architect result PIN checker`
+- [x] Design it (spec): `/architect result PIN checker`
+- [x] Build it: `/develop result PIN checker`
+  - [x] Migration and PIN core: keyed hash, check digit, signed cookie, atomic throttle counts (AC-7, AC-9, AC-14, AC-15, AC-19, AC-20)
+  - [x] Thinnest whole: Results online page with release, withdraw and class slip printing, then `/result` with its answers, result view and card download (AC-1 to AC-3, AC-5, AC-6, AC-8, AC-12 to AC-18)
+  - [x] Lost slips: class slip page, replace one, remake a print run (AC-10, AC-11, AC-19)
+  - [x] Release lock across every term and session writer (AC-4, AC-19)
+  - [x] Results day guards, previews and checks (AC-7, AC-8, AC-20 to AC-22)
+- [x] Verify it: `/check verify result PIN checker`
+- [x] Test it: `/test result PIN checker`
+Spec [0014](../specs/0014-result-pin-checker/index.md) · code in `src/lib/result-pin.ts`, `src/server/result-pin/`, `src/server/data/result-pins.ts`, `src/server/data/pin-results.ts`, `src/components/pin-slips/`, `src/app/admin/schools/[schoolId]/results/`, `src/app/result/`
 
 ## Release 4: Full school year
 
@@ -247,7 +283,12 @@ Out of scope for now, kept so the plan stays honest.
 - **Absent and Exempt marks**: per student per subject, "ABS" counting as 0 and "Exempt" leaving the subject out of the average; until then the teacher types 0 or the subject is made an elective (from spec 0010) · needs a decision
 - **Rank across all arms of a level**: positions out of every JSS 2 arm, not one arm (from spec 0010) · needs a decision
 - **Re-admit a student who left in an earlier term**: a "Left the school" list with "Re-admit into class" (from spec 0008) · needs a decision
+- **Attendance**: days present per student and the attendance box on the report card. The columns (`term_report.days_present`, `term.days_opened`) and the school's switch already exist (from spec 0011) · needs a decision
+- **Student photo on the report card**: a passport photo box on each card; `student.photo_asset_id` already exists (from spec 0012) · needs a decision
+- **School stamp on the report card**: the `stamp` asset kind exists, nothing uploads or prints it (from spec 0012) · needs a decision
 - **Principal history**: keep who signed which term, so reprints of old terms keep the earlier principal after a change (from spec 0007) · needs a decision
+- **School admin or bursar login for PIN slips**: the school prints, replaces and tracks its own slips instead of asking our team (from spec 0014) · needs a decision
+- **Bulk update students from a sheet**: import fixing names, classes, parents or electives of students already in the school; import only adds for now (from spec 0013) · needs a decision
 - **Schools sign themselves up and pay online** · needs a decision · full weight
 - **Own domain and school subdomains** (for example `gracehigh.ourapp.com`) · needs a decision
 - **Learning platform**: student logins, past questions and practice, maybe online exams. WAEC, NECO, and JAMB own their past papers, so get permission or write original practice questions first · needs a decision · full weight

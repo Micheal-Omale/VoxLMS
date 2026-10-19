@@ -2,8 +2,9 @@ import "server-only";
 
 import { and, asc, count, eq, ne } from "drizzle-orm";
 
-import { academicSession, asset, school, schoolClass, section, term } from "@/db/schema";
+import { academicSession, asset, headRemarkBand, school, schoolClass, section, term } from "@/db/schema";
 import { normaliseNigerianPhone } from "@/lib/phone";
+import { DEFAULT_REMARK_BANDS } from "@/lib/remarks";
 import { slugProblem } from "@/lib/reserved-slugs";
 
 import type { Actor, Executor, SchoolContext } from "./context";
@@ -60,21 +61,25 @@ export async function createSchool(db: Executor, actor: Actor, input: SchoolDeta
   assertTeam(actor);
   const problem = await checkDetails(db, input);
   if (problem && !problem.ok) return problem;
-  const [created] = await db
-    .insert(school)
-    .values({
-      name: input.name.trim(),
-      slug: input.slug,
-      code: input.code,
-      address: input.address.trim(),
-      motto: trimOrNull(input.motto),
-      phone: trimOrNull(input.phone) ? normaliseNigerianPhone(input.phone!) : null,
-      email: trimOrNull(input.email),
-      plan: input.plan ?? "basic",
-      showAttendance: input.showAttendance ?? false,
-    })
-    .returning({ id: school.id });
-  return { ok: true, schoolId: created.id };
+  return db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(school)
+      .values({
+        name: input.name.trim(),
+        slug: input.slug,
+        code: input.code,
+        address: input.address.trim(),
+        motto: trimOrNull(input.motto),
+        phone: trimOrNull(input.phone) ? normaliseNigerianPhone(input.phone!) : null,
+        email: trimOrNull(input.email),
+        plan: input.plan ?? "basic",
+        showAttendance: input.showAttendance ?? false,
+      })
+      .returning({ id: school.id });
+    // Every school starts with the default principal's comment bands (spec 0011, AC-10).
+    await tx.insert(headRemarkBand).values(DEFAULT_REMARK_BANDS.map((b) => ({ schoolId: created.id, ...b })));
+    return { ok: true as const, schoolId: created.id };
+  });
 }
 
 export async function updateSchoolDetails(

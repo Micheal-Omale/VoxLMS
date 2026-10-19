@@ -8,6 +8,7 @@ import { type Band, partKey, scaleProblem, splitProblem } from "@/lib/grading-pr
 import type { Executor, SchoolContext } from "./context";
 import { copySourceFor, resolveSessions } from "./curriculum";
 import { NotFound } from "./errors";
+import { assertTermsOpen, sessionTermIds } from "./release";
 import { assertTeam, type FormResult } from "./team";
 
 // Score splits and grade scales per section and session (spec 0006, AC-5 to
@@ -104,6 +105,8 @@ export async function saveScoreSplit(
 
   return ctx.db.transaction(async (tx) => {
     await sessionInSchool(tx, ctx.schoolId, input.sessionId);
+    const termIds = await sessionTermIds(tx, ctx.schoolId, input.sessionId);
+    await assertTermsOpen(tx, ctx.schoolId, termIds);
     await lockSection(tx, ctx.schoolId, input.sectionId);
     // Score saves lock these rows for share while checking maximums, so the two never interleave.
     const existing = await tx
@@ -176,6 +179,8 @@ export async function saveGradeScale(ctx: SchoolContext, input: { sectionId: str
 
   return ctx.db.transaction(async (tx) => {
     await sessionInSchool(tx, ctx.schoolId, input.sessionId);
+    const termIds = await sessionTermIds(tx, ctx.schoolId, input.sessionId);
+    await assertTermsOpen(tx, ctx.schoolId, termIds);
     await lockSection(tx, ctx.schoolId, input.sectionId);
     const scope = and(eq(gradeBand.schoolId, ctx.schoolId), eq(gradeBand.sectionId, input.sectionId), eq(gradeBand.sessionId, input.sessionId));
     await tx.delete(gradeBand).where(scope);

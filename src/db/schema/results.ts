@@ -124,7 +124,10 @@ export const scoreChange = pgTable(
   ],
 );
 
-/** Remarks and attendance for a student in a term. */
+/**
+ * Remarks and attendance for a student in a term. A null `head_remark` means
+ * the head's comment is automatic, worked out from the bands when read (spec 0011).
+ */
 export const termReport = pgTable(
   "term_report",
   {
@@ -140,11 +143,34 @@ export const termReport = pgTable(
   (t) => [
     unique("term_report_enrolment_key").on(t.enrolmentId),
     check("term_report_days_present_positive", sql`${t.daysPresent} is null or ${t.daysPresent} >= 0`),
+    check("term_report_teacher_remark_length", sql`char_length(${t.teacherRemark}) <= 200`),
+    check("term_report_head_remark_length", sql`char_length(${t.headRemark}) <= 200`),
     foreignKey({
       name: "term_report_enrolment_fk",
       columns: [t.schoolId, t.enrolmentId],
       foreignColumns: [enrolment.schoolId, enrolment.id],
     }),
+  ],
+);
+
+/**
+ * A school's wording for the automatic head's comment (spec 0011): a student
+ * gets the remark of the highest band whose lowest average they reach.
+ */
+export const headRemarkBand = pgTable(
+  "head_remark_band",
+  {
+    id: id(),
+    schoolId: schoolId(),
+    minAverage: numeric("min_average", { precision: 5, scale: 2 }).notNull(),
+    remark: text("remark").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("head_remark_band_school_min_key").on(t.schoolId, t.minAverage),
+    check("head_remark_band_min_range", sql`${t.minAverage} between 0 and 100`),
+    check("head_remark_band_remark_length", sql`char_length(${t.remark}) between 1 and 200`),
   ],
 );
 

@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 
 import type { Band } from "@/lib/grading-presets";
+import type { RemarkBand } from "@/lib/remarks";
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
 import type { SchoolContext } from "@/server/data/context";
 import {
@@ -21,7 +22,9 @@ import {
   saveSubject,
   type SubjectInput,
 } from "@/server/data/curriculum";
+import { TermReleased } from "@/server/data/errors";
 import { saveGradeScale, saveScoreSplit, type SplitPartInput } from "@/server/data/grading";
+import { saveRemarkBands } from "@/server/data/remarks";
 import type { FormResult } from "@/server/data/team";
 
 // Our team's subject, class and grading setup actions (spec 0006). Each checks
@@ -30,9 +33,14 @@ import type { FormResult } from "@/server/data/team";
 
 async function run<T extends object>(schoolId: string, fn: (ctx: SchoolContext) => Promise<FormResult<T>>): Promise<FormResult<T>> {
   const { ctx } = await requireTeamSchoolContext(String(schoolId));
-  const result = await fn(ctx);
-  if (result.ok) refresh();
-  return result;
+  try {
+    const result = await fn(ctx);
+    if (result.ok) refresh();
+    return result;
+  } catch (error) {
+    if (error instanceof TermReleased) return { ok: false, field: "term", error: error.message };
+    throw error;
+  }
 }
 
 const ids = (value: unknown) => (Array.isArray(value) ? value.map(String) : []);
@@ -118,4 +126,12 @@ export async function saveScoreSplitAction(schoolId: string, sectionId: string, 
 
 export async function saveGradeScaleAction(schoolId: string, sectionId: string, sessionId: string, bands: Band[]) {
   return run(schoolId, (ctx) => saveGradeScale(ctx, { sectionId: String(sectionId), sessionId: String(sessionId), bands }));
+}
+
+// ---------- Principal's comment bands (spec 0011) ----------
+
+export async function saveRemarkBandsAction(schoolId: string, bands: RemarkBand[]) {
+  return run(schoolId, (ctx) =>
+    saveRemarkBands(ctx, { bands: Array.isArray(bands) ? bands.map((b) => ({ minAverage: String(b?.minAverage ?? ""), remark: String(b?.remark ?? "") })) : [] }),
+  );
 }

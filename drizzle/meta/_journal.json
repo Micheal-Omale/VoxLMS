@@ -64,6 +64,27 @@
       "when": 1792259193320,
       "tag": "0008_admission_number_norm",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792344185089,
+      "tag": "0009_remarks",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792397663102,
+      "tag": "0010_import_run",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792404130666,
+      "tag": "0011_result_pins",
+      "breakpoints": true
     }
   ]
 }

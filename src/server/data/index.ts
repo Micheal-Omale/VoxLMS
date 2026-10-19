@@ -21,3 +21,16 @@ export { linkGuardian, TooManyGuardians } from "./guardians";
 export { allocateStudentNumbers } from "./students";
 export { assertClassAccess, assertWritable, listMyClasses, ReadOnlySession } from "./access";
 export type { Actor } from "./context";
+export {
+  type ClassRemarks,
+  getClassRemarks,
+  getRemarkBands,
+  loadClassRemarks,
+  type RemarkChangeInput,
+  type RemarkField,
+  type RemarkRow,
+  saveRemarkBands,
+  saveRemarks,
+} from "./remarks";
+export { getReportCards, loadReportCards, type ReportCardsData } from "./report-cards";
+export { assertTermsOpen, sessionTermIds } from "./release";

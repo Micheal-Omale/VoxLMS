@@ -7,11 +7,14 @@ import { ChevronLeftIcon, UsersIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { reportCardReadiness } from "@/lib/report-card";
 import { displayStudentId } from "@/lib/student-number";
 import { termLabel } from "@/lib/term-label";
 import { requireSchoolContext } from "@/server/auth/viewer";
-import { getClassPage, getClassResults, listSubjectProgress, NoCurrentTerm, NotFound } from "@/server/data";
+import { getClassPage, getClassRemarks, listSubjectProgress, NoCurrentTerm, NotFound } from "@/server/data";
 
+import { RemarksSection } from "./remarks-section";
+import { ReportCardsSection } from "./report-cards-section";
 import { ResultsSection } from "./results-section";
 import { ScoresSection } from "./scores-section";
 
@@ -39,7 +42,8 @@ export default function ClassPage({ params, searchParams }: { params: Params; se
 
 /**
  * A form class: its subjects with score progress first (spec 0009, AC-1,
- * AC-2), then the term's results (spec 0010, AC-8), then its students this
+ * AC-2), then the term’s results (spec 0010, AC-8), remarks (spec 0011,
+ * AC-1) and report cards (spec 0012, AC-1), then its students this
  * term, read only (spec 0008, AC-14). No photos or parents for teachers.
  */
 async function ClassList({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
@@ -47,10 +51,10 @@ async function ClassList({ params, searchParams }: { params: Params; searchParam
   const { ctx, school } = await requireSchoolContext(slug);
   const termId = typeof termParam === "string" ? termParam : undefined;
   if (!UUID.test(classId) || (termParam !== undefined && !(termId && UUID.test(termId)))) notFound();
-  const [page, progress, results] = await Promise.all([
+  const [page, progress, { results, remarks }] = await Promise.all([
     getClassPage(ctx, { classId }).catch(notFoundOn),
     listSubjectProgress(ctx, { classId, termId }).catch(notFoundOn),
-    getClassResults(ctx, { classId, termId }).catch(notFoundOn),
+    getClassRemarks(ctx, { classId, termId }).catch(notFoundOn),
   ]);
   const { cls, term, session, students } = page;
   const boys = students.filter((s) => s.gender === "male").length;
@@ -78,6 +82,17 @@ async function ClassList({ params, searchParams }: { params: Params; searchParam
       <ScoresSection slug={slug} classId={cls.id} progress={progress} />
 
       <ResultsSection results={results} schoolCode={school.code} />
+
+      <RemarksSection slug={slug} results={results} remarks={remarks} />
+
+      <ReportCardsSection
+        slug={slug}
+        classId={cls.id}
+        termId={results.term.id}
+        isCurrentTerm={results.term.isCurrent}
+        teacherTitle={remarks.teacherTitle}
+        readiness={reportCardReadiness({ results, remarks, hasSigner: remarks.hasSigner })}
+      />
 
       <section aria-labelledby="students-title" className="flex flex-col gap-4">
         <h2 id="students-title" className="type-title">

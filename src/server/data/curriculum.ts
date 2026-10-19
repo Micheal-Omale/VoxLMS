@@ -25,6 +25,7 @@ import { SHORT_NAME, suggestShortName } from "@/lib/subject-short-name";
 
 import type { Executor, SchoolContext } from "./context";
 import { NotFound } from "./errors";
+import { assertTermsOpen, sessionTermIds } from "./release";
 import { assertTeam, type FormResult } from "./team";
 
 // Subjects, classes and what each class offers (spec 0006). Our team only.
@@ -608,6 +609,8 @@ export async function saveLevelOffer(
   if (input.changes.length === 0) return { ok: true, changed: 0 };
   return ctx.db.transaction(async (tx) => {
     const session = await requireSession(tx, ctx.schoolId, input.sessionId);
+    const termIds = await sessionTermIds(tx, ctx.schoolId, input.sessionId);
+    await assertTermsOpen(tx, ctx.schoolId, termIds);
     const [level] = await tx.select({ id: standardLevel.id, name: standardLevel.name }).from(standardLevel).where(eq(standardLevel.id, input.levelId));
     if (!level) throw new NotFound("Level");
     const arms = await tx
@@ -638,6 +641,8 @@ export async function saveClassOffer(
   if (problem && !problem.ok) return problem;
   return ctx.db.transaction(async (tx) => {
     const session = await requireSession(tx, ctx.schoolId, input.sessionId);
+    const termIds = await sessionTermIds(tx, ctx.schoolId, input.sessionId);
+    await assertTermsOpen(tx, ctx.schoolId, termIds);
     const [cls] = await tx
       .select({ id: schoolClass.id, name: schoolClass.name, sectionId: schoolClass.sectionId })
       .from(schoolClass)
@@ -663,6 +668,8 @@ export async function copySessionSetup(
   if (input.fromSessionId === input.toSessionId) return { ok: false, field: "copy", error: "Choose a different session to copy from." };
   return ctx.db.transaction(async (tx) => {
     const [from, to] = [await requireSession(tx, ctx.schoolId, input.fromSessionId), await requireSession(tx, ctx.schoolId, input.toSessionId)];
+    const termIds = await sessionTermIds(tx, ctx.schoolId, to.id);
+    await assertTermsOpen(tx, ctx.schoolId, termIds);
     // One copy (or split or scale save) per section at a time.
     const sections = await tx.select({ id: section.id }).from(section).where(eq(section.schoolId, ctx.schoolId)).for("no key update");
 
