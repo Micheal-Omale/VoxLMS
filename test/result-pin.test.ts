@@ -9,40 +9,41 @@ import { pinHash, pinKey, readResultCookie, signResultCookie } from "@/server/re
 // Spec 0014: the PIN core (AC-7, AC-9, AC-14, AC-15, AC-20).
 
 describe("PINs", () => {
-  it("makes 12 digit PINs with a valid check digit", () => {
+  it("makes PINs with school initials and a valid check digit", () => {
     for (let i = 0; i < 10_000; i++) {
-      const pin = makePin(randomBytes);
-      expect(pin).toMatch(/^\d{12}$/);
+      const pin = makePin("GHS", randomBytes);
+      expect(pin).toMatch(/^GHS \d{4} \d{4}$/);
       expect(isPinShaped(pin)).toBe(true);
     }
   });
 
   it("catches one changed digit and one swapped pair", () => {
-    const pin = makePin(randomBytes);
-    for (let i = 0; i < 12; i++) {
-      const changed = pin.slice(0, i) + String((Number(pin[i]) + 1) % 10) + pin.slice(i + 1);
+    const pin = makePin("GHS", randomBytes);
+    const norm = normalizePin(pin);
+    // changing digits
+    for (let i = 3; i < norm.length; i++) {
+      const changed = norm.slice(0, i) + String((Number(norm[i]) + 1) % 10) + norm.slice(i + 1);
       expect(isPinShaped(changed)).toBe(false);
     }
-    const good = "482109375512".slice(0, 11);
-    const full = makePin(() => Uint8Array.from(good.split("").map(Number)));
-    expect(full.slice(0, 11)).toBe(good);
-    const swapped = full[1] + full[0] + full.slice(2);
-    if (full[0] !== full[1] && !["09", "90"].includes(full.slice(0, 2))) expect(isPinShaped(swapped)).toBe(false);
+    // omitting school initials
+    expect(isPinShaped(norm.slice(3))).toBe(false);
   });
 
-  it("ignores spaces and dashes, and groups in fours", () => {
-    const pin = makePin(randomBytes);
+  it("ignores spaces and dashes, and groups with school initials", () => {
+    const pin = makePin("GHS", randomBytes);
     const grouped = groupPin(pin);
-    expect(grouped).toMatch(/^\d{4} \d{4} \d{4}$/);
+    expect(grouped).toMatch(/^GHS \d{4} \d{4}$/);
     expect(isPinShaped(grouped)).toBe(true);
     expect(isPinShaped(grouped.replaceAll(" ", "-"))).toBe(true);
-    expect(normalizePin(` ${grouped} `)).toBe(pin);
+    expect(isPinShaped(grouped.toLowerCase())).toBe(true);
+    expect(normalizePin(` ${grouped} `)).toBe(pin.replace(/\s+/g, ""));
     expect(isPinShaped("12345")).toBe(false);
+    expect(isPinShaped("34653155")).toBe(false);
   });
 
   it("takes only digit bytes below 250 (no modulo bias)", () => {
-    const bytes = [255, 250, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-    expect(makePin(() => Uint8Array.from(bytes)).slice(0, 11)).toBe("12345678901");
+    const bytes = [255, 250, 1, 2, 3, 4, 5, 6, 7];
+    expect(normalizePin(makePin("GHS", () => Uint8Array.from(bytes))).slice(3, 10)).toBe("1234567");
   });
 
   it("formats serials and file names", () => {

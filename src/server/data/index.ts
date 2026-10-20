@@ -34,3 +34,10 @@ export {
 } from "./remarks";
 export { getReportCards, loadReportCards, type ReportCardsData } from "./report-cards";
 export { assertTermsOpen, sessionTermIds } from "./release";
+export {
+  assertLeadership,
+  type ClassLaggingReport,
+  getPrincipalOverview,
+  type PrincipalOverview,
+} from "./principal";
+

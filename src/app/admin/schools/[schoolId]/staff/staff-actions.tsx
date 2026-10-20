@@ -11,6 +11,7 @@ import {
   PencilIcon,
   PhoneIcon,
   PowerIcon,
+  ShieldCheckIcon,
   UndoIcon,
   UserPlusIcon,
 } from "lucide-react";
@@ -33,7 +34,7 @@ import { toast } from "@/components/ui/toast";
 import { formatNigerianPhone } from "@/lib/phone";
 
 import { changePhoneAction, createLoginAction, setLoginEnabledAction, signOutEverywhereAction, startViewAsAction } from "../../../actions";
-import { saveTeacherAction, setStaffLeftAction } from "../../enrol-actions";
+import { saveTeacherAction, setStaffLeftAction, setStaffRoleAction } from "../../enrol-actions";
 import { ConfirmFix, type FixConfirm } from "../confirm-fix";
 import { PasswordDialog, SamePersonDialog, SetupLinkDialog, useLoginActions } from "./login-dialogs";
 import { TITLES } from "./titles";
@@ -45,6 +46,7 @@ type Props = {
   title: string | null;
   fullName: string;
   phone: string;
+  role?: "teacher" | "principal" | "school_admin";
   loginStatus: "none" | "waiting" | "active" | "off";
   isSelf: boolean;
   isTeam: boolean;
@@ -141,6 +143,25 @@ export function StaffActions(props: Props) {
             >
               <PencilIcon />
               Edit details
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                const nextRole = props.role === "principal" ? "teacher" : "principal";
+                start(async () => {
+                  const result = await setStaffRoleAction(props.schoolId, props.staffId, nextRole);
+                  if (result.ok) {
+                    toast.add({
+                      title: "Role updated",
+                      description: `${name} is now ${nextRole === "principal" ? "Principal" : "Teacher"}.`,
+                      type: "success",
+                    });
+                    router.refresh();
+                  }
+                });
+              }}
+            >
+              <ShieldCheckIcon />
+              {props.role === "principal" ? "Change to Teacher" : "Make Principal"}
             </DropdownMenuItem>
             {props.active ? (
               !props.isSelf && (

@@ -300,7 +300,14 @@ export async function setLoginEnabled(
 /** Active schools for a login, for the picker and the address check. */
 export async function activeSchoolsFor(db: Executor, userId: string) {
   return db
-    .select({ schoolId: school.id, slug: school.slug, name: school.name, code: school.code, staffId: staff.id })
+    .select({
+      schoolId: school.id,
+      slug: school.slug,
+      name: school.name,
+      code: school.code,
+      staffId: staff.id,
+      role: staff.role,
+    })
     .from(staff)
     .innerJoin(school, eq(school.id, staff.schoolId))
     .where(and(eq(staff.userId, userId), eq(staff.status, "active")));

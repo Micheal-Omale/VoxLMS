@@ -28,7 +28,7 @@ export type PinRefusal =
 export function pinMessage(refusal: PinRefusal): string {
   switch (refusal.reason) {
     case "shape":
-      return "That PIN doesn’t look right. Check the 12 digits on the slip.";
+      return "That code doesn’t look right. Check the code on the slip, e.g. GHS 3465 3155.";
     case "throttled":
       return `Too many wrong PINs from this network. Try again in ${formatWait(refusal.waitSeconds)}.`;
     case "unknown":

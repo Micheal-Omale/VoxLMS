@@ -14,10 +14,10 @@ import { addTeacherAction } from "../../enrol-actions";
 import { PasswordDialog, SamePersonDialog, SetupLinkDialog, useLoginActions } from "./login-dialogs";
 import { TITLES } from "./titles";
 
-const empty = { title: "", fullName: "", phone: "" };
+const empty = { title: "", fullName: "", phone: "", role: "teacher" as "teacher" | "principal" };
 
 /**
- * Adds a teacher and their login in one step, then shows their setup link
+ * Adds a teacher or principal and their login in one step, then shows their setup link
  * (spec 0008, AC-1). A phone that already has a login asks "same person?" first.
  */
 export function AddTeacher({ schoolId }: { schoolId: string }) {
@@ -107,6 +107,18 @@ export function AddTeacher({ schoolId }: { schoolId: string }) {
               aria-describedby={fieldError("phone") ? "new-phone-error" : undefined}
             />
           </Field>
+          <Field>
+            <FieldLabel htmlFor="new-role">Portal Role</FieldLabel>
+            <select
+              id="new-role"
+              value={values.role}
+              onChange={(e) => setValues((v) => ({ ...v, role: e.target.value as "teacher" | "principal" }))}
+              className="h-9 w-full rounded-md border border-input bg-card px-2.5 py-1 text-xs font-semibold shadow-xs focus-visible:outline-2 focus-visible:outline-primary"
+            >
+              <option value="teacher">Teacher</option>
+              <option value="principal">Principal</option>
+            </select>
+          </Field>
         </div>
         {error && (
           <FieldError id={`new-${error.field === "phone" ? "phone" : "name"}-error`} className="-mt-1">
@@ -114,10 +126,14 @@ export function AddTeacher({ schoolId }: { schoolId: string }) {
           </FieldError>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="type-caption text-muted-foreground">They sign in with this phone number. Their login is made now, and the setup link comes next.</p>
+          <p className="type-caption text-muted-foreground">
+            {values.role === "principal"
+              ? "Creates the Principal's login for the Leadership Portal. Setup link follows immediately."
+              : "They sign in with this phone number. Their login is made now, and the setup link comes next."}
+          </p>
           <Button type="submit" disabled={pending} className="shrink-0">
             {saving ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
-            Add teacher
+            {values.role === "principal" ? "Add principal" : "Add teacher"}
           </Button>
         </div>
         <datalist id="new-staff-titles">

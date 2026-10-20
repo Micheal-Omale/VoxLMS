@@ -47,7 +47,13 @@ async function SchoolShell({ params, children }: { params: Params; children: Rea
         term={current ? termLabel(current.term.number, current.session.name) : "No current term set"}
         account={{
           name: viewer.name,
-          detail: viewer.isTeam ? "VoxLMS team" : readOnly ? "Viewing as" : "Teacher",
+          detail: viewer.isTeam
+            ? "VoxLMS team"
+            : readOnly
+              ? "Viewing as"
+              : ctx.actor.kind === "principal"
+                ? "Principal"
+                : "Teacher",
           canSwitchSchool: !readOnly && viewer.schools.length > 1,
           readOnly,
         }}

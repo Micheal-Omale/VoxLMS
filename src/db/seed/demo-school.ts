@@ -218,11 +218,12 @@ export async function buildSchool(tx: Tx, input: { slug: string; code: string; n
     ])
     .returning();
 
-  const [funke, ibrahim] = await tx
+  const [funke, ibrahim, samuel] = await tx
     .insert(t.staff)
     .values([
       { schoolId, title: "Mrs", fullName: "Funke Adewale", phone: phone("0803 123 4567"), role: "teacher" },
       { schoolId, title: "Mr", fullName: "Ibrahim Musa", phone: phone("0805 987 6543"), role: "teacher" },
+      { schoolId, title: "Mr", fullName: "Samuel Adeleke", phone: phone("0802 000 0001"), role: "principal" },
     ])
     .returning();
   await tx.insert(t.classTeacher).values([

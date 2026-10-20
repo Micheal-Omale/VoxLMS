@@ -10,8 +10,7 @@ const slip = (i: number): PinSlip => ({
   school: "Government Secondary School Comprehensive Model College of Science and Technology, Ikot Ekpene Road",
   heading: "Result PIN · First Term, 2026/2027",
   student: `OKONKWO-ADEBAYO Chukwuemeka Oluwaseun Babatunde Ifeanyichukwu ${i + 1} · JSS 2 Gold`,
-  pin: "4821 0937 5512",
-  serial: `Serial TSA ${String(i + 1).padStart(6, "0")}`,
+  pin: "GSS 3465 3155",
   checkAt: "Check the result at voxlms.com/result",
 });
 

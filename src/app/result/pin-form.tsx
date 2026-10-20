@@ -25,17 +25,18 @@ export function PinForm({ initialMessage }: { initialMessage?: string }) {
           id="pin"
           name="pin"
           type="text"
-          inputMode="numeric"
+          autoCapitalize="characters"
           autoComplete="off"
           spellCheck={false}
           required
           maxLength={40}
+          placeholder="e.g. GHS 3465 3155"
           defaultValue={state?.keep ?? ""}
           aria-describedby="pin-hint"
           aria-invalid={message ? true : undefined}
           className="h-12 type-figure text-lg tracking-wider"
         />
-        <FieldDescription id="pin-hint">12 digits from the slip the school gave you</FieldDescription>
+        <FieldDescription id="pin-hint">Code from the slip the school gave you, e.g. GHS 3465 3155</FieldDescription>
         {message && (
           <FieldError role="alert" className="text-sm">
             {message}

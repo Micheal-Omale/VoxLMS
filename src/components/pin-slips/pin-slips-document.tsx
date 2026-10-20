@@ -37,7 +37,6 @@ function Slip({ slip, index }: { slip: PinSlip; index: number }) {
         {slip.student}
       </Text>
       <Text style={styles.pin}>{slip.pin}</Text>
-      <Text style={styles.small}>{slip.serial}</Text>
       <Text style={[styles.small, styles.oneLine]}>
         {slip.checkAt}
       </Text>

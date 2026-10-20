@@ -58,7 +58,14 @@ async function Staff({ params }: { params: Params }) {
     return (
       <li key={m.staffId} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-rule px-4 py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:px-5">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="font-bold">{[m.title, m.fullName].filter(Boolean).join(" ")}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-bold">{[m.title, m.fullName].filter(Boolean).join(" ")}</span>
+            {m.role === "principal" && (
+              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[10px] font-semibold uppercase tracking-wider">
+                Principal
+              </Badge>
+            )}
+          </div>
           <span className="type-caption text-muted-foreground">
             <span className="type-figure">{formatNigerianPhone(m.phone)}</span>
             {m.status === "active" && headed.session && (
@@ -87,6 +94,7 @@ async function Staff({ params }: { params: Params }) {
           title={m.title}
           fullName={m.fullName}
           phone={m.phone}
+          role={m.role}
           loginStatus={m.loginStatus}
           isSelf={m.userId === viewer.userId}
           isTeam={m.isTeam}

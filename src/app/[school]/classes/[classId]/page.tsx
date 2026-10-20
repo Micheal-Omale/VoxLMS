@@ -81,7 +81,12 @@ async function ClassList({ params, searchParams }: { params: Params; searchParam
 
       <ScoresSection slug={slug} classId={cls.id} progress={progress} />
 
-      <ResultsSection results={results} schoolCode={school.code} />
+      <ResultsSection
+        results={results}
+        schoolCode={school.code}
+        slug={slug}
+        termQuery={termParam ? `?term=${termId}` : ""}
+      />
 
       <RemarksSection slug={slug} results={results} remarks={remarks} />
 

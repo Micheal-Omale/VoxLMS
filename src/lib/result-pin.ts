@@ -19,30 +19,39 @@ export function luhnDigit(digits: string) {
 }
 
 /**
- * 11 random digits, then the Luhn digit. Each digit comes from one byte
- * below 250, so every digit is equally likely (no modulo bias).
+ * 7 random digits, then the Luhn digit (8 digits total).
+ * Preceded by the school's initials (code), e.g. "GHS 3465 3155".
  */
-export function makePin(randomBytes: (size: number) => Uint8Array) {
+export function makePin(schoolCode: string, randomBytes: (size: number) => Uint8Array) {
   let digits = "";
-  while (digits.length < 11) {
+  while (digits.length < 7) {
     for (const byte of randomBytes(16)) {
-      if (byte < 250 && digits.length < 11) digits += String(byte % 10);
+      if (byte < 250 && digits.length < 7) digits += String(byte % 10);
     }
   }
-  return digits + luhnDigit(digits);
+  const full = digits + luhnDigit(digits);
+  return `${schoolCode.toUpperCase()} ${full.slice(0, 4)} ${full.slice(4, 8)}`;
 }
 
-/** What the parent typed, without spaces and dashes. */
-export const normalizePin = (text: string) => text.replace(/[\s\-‐-―]/g, "");
+/** What the parent typed, uppercased and without spaces and dashes. */
+export const normalizePin = (text: string) => text.trim().toUpperCase().replace(/[\s\-‐-―]/g, "");
 
-/** 12 digits whose last is the Luhn digit of the first 11 (AC-12, step 1). */
+/** School initials (2 to 6 letters) + 8 digits whose last is the Luhn digit of the first 7 (AC-12, step 1). */
 export function isPinShaped(text: string) {
   const pin = normalizePin(text);
-  return /^\d{12}$/.test(pin) && luhnDigit(pin.slice(0, 11)) === pin[11];
+  const match = /^([A-Z]{2,6})(\d{8})$/.exec(pin);
+  if (!match) return false;
+  const digits = match[2];
+  return luhnDigit(digits.slice(0, 7)) === digits[7];
 }
 
-/** "4821 0937 5512" */
-export const groupPin = (pin: string) => pin.replace(/(\d{4})(?=\d)/g, "$1 ");
+/** "GHS 3465 3155" */
+export function groupPin(pin: string) {
+  const norm = normalizePin(pin);
+  const match = /^([A-Z]{2,6})(\d{4})(\d{4})$/.exec(norm);
+  if (match) return `${match[1]} ${match[2]} ${match[3]}`;
+  return norm.replace(/(\d{4})(?=\d)/g, "$1 ");
+}
 
 /** "GHS 000123" (AC-9). */
 export const formatSerial = (code: string, serial: number) => `${code} ${String(serial).padStart(6, "0")}`;
@@ -86,10 +95,10 @@ export type PinSlip = {
   heading: string;
   /** "OKON Emem · JSS 2 Gold" */
   student: string;
-  /** "4821 0937 5512" */
+  /** "GHS 3465 3155" */
   pin: string;
-  /** "Serial GHS 000123" */
-  serial: string;
+  /** "Serial GHS 000123" (optional) */
+  serial?: string;
   /** "Check the result at voxlms.com/result" */
   checkAt: string;
 };

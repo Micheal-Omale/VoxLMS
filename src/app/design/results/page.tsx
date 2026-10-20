@@ -43,7 +43,7 @@ async function Demo({ searchParams }: { searchParams: SearchParams }) {
   return <ResultsSection results={demoResults({ five: parts === "5", count: subjects === "20" ? 20 : 8, state })} schoolCode="GHS" />;
 }
 
-function demoResults({ five, count, state }: { five: boolean; count: number; state?: string }): ClassResults {
+export function demoResults({ five, count, state }: { five: boolean; count: number; state?: string }): ClassResults {
   const split = five ? demoColumnsFive : demoColumns;
   const names = SUBJECTS.slice(0, count);
   // The last two subjects are electives taken by every other student.

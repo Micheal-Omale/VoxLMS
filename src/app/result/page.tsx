@@ -14,7 +14,7 @@ import { ResultView } from "./result-view";
 
 export const metadata: Metadata = {
   title: "Check a school result",
-  description: "Type the 12 digit PIN from your child’s result slip to see their school result and download the report card.",
+  description: "Type the code from your child’s result slip to see their school result and download the report card.",
 };
 
 export default function ResultPage() {
@@ -51,7 +51,7 @@ function FormScreen({ message }: { message?: string }) {
       <div className="ruled-sheet rounded-xl border border-rule py-7 pr-5 pl-[calc(var(--margin-x)+1.25rem)] shadow-sm [--margin-x:1.5rem] sm:py-9 sm:pr-8 sm:pl-[calc(var(--margin-x)+2rem)] sm:[--margin-x:2rem]">
         <div className="mb-7 flex flex-col gap-1.5">
           <h1 className="type-title">Check a school result</h1>
-          <p className="text-muted-foreground">Type the PIN printed on the slip from your child’s school.</p>
+          <p className="text-muted-foreground">Type the code printed on the slip from your child’s school.</p>
         </div>
         <PinForm initialMessage={message} />
       </div>

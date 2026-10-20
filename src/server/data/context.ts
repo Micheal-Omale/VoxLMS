@@ -35,6 +35,7 @@ export type SchoolContext = {
  */
 export type Actor =
   | { kind: "teacher"; staffId: string; readOnly: boolean }
+  | { kind: "principal"; staffId: string; readOnly: boolean }
   | { kind: "admin"; readOnly: boolean }
   | { kind: "system" };
 

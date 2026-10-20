@@ -1,7 +1,10 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { TablePropertiesIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireTeamSchoolContext } from "@/server/auth/viewer";
 import { NoCurrentTerm, NotFound } from "@/server/data";
@@ -50,6 +53,18 @@ async function ClassSlips({ params, searchParams }: { params: Params; searchPara
         title={`${data.cls.name} PIN slips`}
         intro={`${data.term.label}. A replaced slip stops working at once; slips are never printed twice.`}
         back={back}
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href={`/admin/schools/${school.id}/classes/${classId}/broadsheet?term=${data.term.id}`} />}
+            className="gap-1.5"
+          >
+            <TablePropertiesIcon data-icon="inline-start" className="size-4" />
+            View Broadsheet
+          </Button>
+        }
       />
 
       <section aria-labelledby="students-heading" className="flex flex-col gap-3">

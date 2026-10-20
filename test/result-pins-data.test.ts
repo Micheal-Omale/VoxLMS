@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { renderPinSlips } from "@/components/pin-slips/render";
 import * as t from "@/db/schema";
 import { buildReportCards } from "@/lib/report-card";
-import { normalizePin, type PinSlip } from "@/lib/result-pin";
+import { luhnDigit, normalizePin, type PinSlip } from "@/lib/result-pin";
 import { getClassResults, getReportCards, NotFound, saveScores, schoolContext } from "@/server/data";
 import type { Executor } from "@/server/data/context";
 import { NothingToPrint, PinKeyMissing, SlipAlreadyReplaced } from "@/server/data/errors";
@@ -75,7 +75,7 @@ describe("printing slips (AC-5, AC-6, AC-9)", () => {
       const results = await getClassResults(await teamCtx(tx), { classId: a.cls(JSS).id });
       expect(made.slips).toHaveLength(results.students.length);
       expect(made.fileName).toMatch(/^TSA JSS 2 Gold First Term .+ PIN slips\.pdf$/);
-      expect(made.slips[0].pin).toMatch(/^\d{4} \d{4} \d{4}$/);
+      expect(made.slips[0].pin).toMatch(/^TSA \d{4} \d{4}$/);
       expect(made.slips[0].serial).toMatch(/^Serial TSA \d{6}$/);
       const rows = await tx.select().from(t.resultPin).where(eq(t.resultPin.runId, made.runId));
       expect(new Set(rows.map((r) => r.serial)).size).toBe(rows.length);
@@ -124,8 +124,10 @@ describe("checking a PIN (AC-12 to AC-15)", () => {
       expect(await checkPin(pin, ip, tx)).toMatchObject({ ok: false, reason: "unreleased" });
       expect(await ipCount(tx, ip)).toBe(0);
 
-      const other = pin.slice(0, 10) + String((Number(pin[10]) + 1) % 10);
-      const unknown = other + String((10 - ((other.split("").reverse().reduce((sum, d, i) => sum + (i % 2 === 0 ? (Number(d) * 2 > 9 ? Number(d) * 2 - 9 : Number(d) * 2) : Number(d)), 0)) % 10)) % 10);
+      const code = pin.slice(0, 3);
+      const digits = pin.slice(3);
+      const diff7 = digits.slice(0, 6) + String((Number(digits[6]) + 1) % 10);
+      const unknown = code + diff7 + luhnDigit(diff7);
       expect(await checkPin(unknown, ip, tx)).toMatchObject({ ok: false, reason: "unknown" });
       expect(await ipCount(tx, ip)).toBe(1);
 
@@ -164,7 +166,7 @@ describe("checking a PIN (AC-12 to AC-15)", () => {
     await inRollback(async (tx) => {
       const ip = `10.8.${Math.floor(Math.random() * 250)}.2`;
       const made = await print(tx);
-      const wrong = "000000000000"; // Luhn valid, never made by chance in this test.
+      const wrong = "TSA00000000"; // Luhn valid, never made by chance in this test.
       for (let i = 0; i < 10; i++) expect(await checkPin(wrong, ip, tx)).toMatchObject({ reason: "unknown" });
       const slowed = await checkPin(normalizePin(made.slips[0].pin), ip, tx);
       expect(slowed).toMatchObject({ ok: false, reason: "throttled" });
@@ -254,7 +256,7 @@ describe("results day guards (AC-7, AC-8, AC-20)", () => {
       try {
         delete process.env.RESULT_PIN_SECRET;
         await expect(print(tx)).rejects.toThrow(PinKeyMissing);
-        const check = await checkPin("000000000000", "10.1.2.3", tx);
+        const check = await checkPin("TSA00000000", "10.1.2.3", tx);
         expect(check).toEqual({ ok: false, reason: "unavailable" });
         if (!check.ok) {
           expect(pinMessage(check)).toBe("Result checking isn’t available right now. Please try again later.");

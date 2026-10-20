@@ -7,7 +7,7 @@ import { requireTeamSchoolContext } from "@/server/auth/viewer";
 import { NoCurrentTerm, NotFound, TermReleased } from "@/server/data";
 import type { SchoolContext } from "@/server/data/context";
 import { addGuardian, makePrimaryGuardian, type Relationship, saveGuardian, unlinkGuardian } from "@/server/data/guardians";
-import { addTeacher, saveTeacher, setFormTeacher, setStaffLeft } from "@/server/data/staff";
+import { addTeacher, saveTeacher, setFormTeacher, setStaffLeft, setStaffRole } from "@/server/data/staff";
 import { sqlState } from "@/server/data/team";
 import {
   addStudent,
@@ -55,14 +55,24 @@ const orNull = (value: unknown) => (typeof value === "string" && value ? value :
 
 // ---------- Staff (AC-1 to AC-4) ----------
 
-export async function addTeacherAction(schoolId: string, input: { title?: string; fullName: string; phone: string; confirmSamePerson?: boolean }) {
+export async function addTeacherAction(schoolId: string, input: { title?: string; fullName: string; phone: string; confirmSamePerson?: boolean; role?: "teacher" | "principal" }) {
   return run(schoolId, async (ctx, userId) =>
     addTeacher(
       ctx,
-      { title: str(input?.title), fullName: str(input?.fullName), phone: str(input?.phone), confirmSamePerson: input?.confirmSamePerson === true },
+      {
+        title: str(input?.title),
+        fullName: str(input?.fullName),
+        phone: str(input?.phone),
+        confirmSamePerson: input?.confirmSamePerson === true,
+        role: input?.role === "principal" ? "principal" : "teacher",
+      },
       { actorUserId: userId, meta: await requestMeta() },
     ),
   );
+}
+
+export async function setStaffRoleAction(schoolId: string, staffId: string, role: "teacher" | "principal") {
+  return run(schoolId, (ctx) => setStaffRole(ctx, { staffId: String(staffId), role }));
 }
 
 export async function saveTeacherAction(schoolId: string, staffId: string, input: { title?: string; fullName: string; phone?: string }) {

@@ -8,15 +8,16 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Skeleton } from "@/components/ui/skeleton";
 import { termLabel } from "@/lib/term-label";
 import { requireSchoolContext } from "@/server/auth/viewer";
-import { getCurrentTerm, listHomeClasses, NoCurrentTerm } from "@/server/data";
+import { PrincipalDashboard } from "@/components/principal/principal-dashboard";
+import { getCurrentTerm, getPrincipalOverview, listHomeClasses, NoCurrentTerm } from "@/server/data";
 
-export const metadata: Metadata = { title: "Your classes" };
+export const metadata: Metadata = { title: "School Overview" };
 
 type Params = Promise<{ school: string }>;
 
 export default function SchoolHome({ params }: { params: Params }) {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <Suspense fallback={<HomeSkeleton />}>
         <Home params={params} />
       </Suspense>
@@ -43,6 +44,13 @@ async function Home({ params }: { params: Params }) {
         </EmptyHeader>
       </Empty>
     );
+  }
+
+  // Leadership view (school principal or our team): renders the full Principal Portal
+  const isLeadership = ctx.actor.kind === "principal" || viewer.isTeam;
+  if (isLeadership) {
+    const overview = await getPrincipalOverview(ctx);
+    return <PrincipalDashboard data={overview} />;
   }
 
   const classes = await listHomeClasses(ctx, { termId: current.term.id, sessionId: current.session.id });

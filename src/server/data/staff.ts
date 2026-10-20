@@ -56,7 +56,7 @@ export type AddTeacherResult =
  */
 export async function addTeacher(
   ctx: SchoolContext,
-  input: TeacherInput & { phone: string; confirmSamePerson: boolean },
+  input: TeacherInput & { phone: string; confirmSamePerson: boolean; role?: "teacher" | "principal" },
   by: ActorMeta,
 ): Promise<AddTeacherResult> {
   assertTeam(ctx.actor);
@@ -66,6 +66,8 @@ export async function addTeacher(
   if (!phone) return { ok: false, field: "phone", error: "That isn't a Nigerian mobile number. Type it like 0803 123 4567." };
   const clash = await staffPhoneProblem(ctx.db, ctx.schoolId, phone);
   if (clash) return clash;
+
+  const role = input.role === "principal" ? "principal" : "teacher";
 
   const [existing] = await ctx.db.select({ id: user.id, name: user.name, banned: user.banned }).from(user).where(eq(user.username, phone.slice(1)));
   if (existing && !input.confirmSamePerson) {
@@ -88,7 +90,7 @@ export async function addTeacher(
     return await ctx.db.transaction(async (tx) => {
       const [created] = await tx
         .insert(staff)
-        .values({ schoolId: ctx.schoolId, title: tidy(input.title) || null, fullName: tidy(input.fullName), phone, role: "teacher" })
+        .values({ schoolId: ctx.schoolId, title: tidy(input.title) || null, fullName: tidy(input.fullName), phone, role })
         .returning({ id: staff.id });
       const login = await createLoginForStaff(authOn(tx), {
         schoolId: ctx.schoolId,
@@ -151,6 +153,16 @@ export async function saveTeacher(ctx: SchoolContext, input: TeacherInput & { st
     }
     return { ok: true as const };
   });
+}
+
+/** Updates a staff member's role between teacher and principal. */
+export async function setStaffRole(ctx: SchoolContext, input: { staffId: string; role: "teacher" | "principal" }): Promise<FormResult> {
+  assertTeam(ctx.actor);
+  await ctx.db
+    .update(staff)
+    .set({ role: input.role })
+    .where(and(eq(staff.schoolId, ctx.schoolId), eq(staff.id, input.staffId)));
+  return { ok: true as const };
 }
 
 /** The session "this session" means for form classes: the current term's, else the newest. */

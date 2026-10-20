@@ -108,12 +108,15 @@ export async function schoolContextFor(viewer: Viewer, slug: string): Promise<{ 
   }
   const membership = viewer.schools.find((s) => s.schoolId === found.id);
   if (!membership) return null;
+  const isPrincipal = membership.role === "principal";
   return {
     school: found,
     ctx: schoolContext({
       schoolId: found.id,
       userId: viewer.userId,
-      actor: { kind: "teacher", staffId: membership.staffId, readOnly: viewer.viewingAsBy !== null },
+      actor: isPrincipal
+        ? { kind: "principal", staffId: membership.staffId, readOnly: viewer.viewingAsBy !== null }
+        : { kind: "teacher", staffId: membership.staffId, readOnly: viewer.viewingAsBy !== null },
     }),
   };
 }

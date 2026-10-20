@@ -363,7 +363,7 @@ function isUniqueViolation(error: unknown): boolean {
   return false;
 }
 
-type SubjectProgressRow = {
+export type SubjectProgressRow = {
   classSubjectId: string;
   classId: string;
   name: string;
@@ -379,7 +379,7 @@ type SubjectProgressRow = {
  * AC-1, AC-12). Counted from the scores each time it is shown, never stored.
  * With no split set, nobody is complete: a missing part is never a 0.
  */
-async function subjectProgress(db: Executor, schoolId: string, input: { termId: string; sessionId: string; classIds: string[] }) {
+export async function subjectProgress(db: Executor, schoolId: string, input: { termId: string; sessionId: string; classIds: string[] }) {
   if (input.classIds.length === 0) return [];
   const classIds = sql.join(
     input.classIds.map((id) => sql`${id}::uuid`),

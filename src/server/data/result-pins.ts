@@ -6,7 +6,7 @@ import { and, asc, count, desc, eq, inArray, isNull, lte, sql } from "drizzle-or
 
 import { academicSession, enrolment, resultPin, resultPinRun, school, schoolClass, student, term, user } from "@/db/schema";
 import { byRegister, cardName, reportCardReadiness } from "@/lib/report-card";
-import { formatSerial, groupPin, makePin, type PinSlip, slipFileName } from "@/lib/result-pin";
+import { formatSerial, groupPin, makePin, normalizePin, type PinSlip, slipFileName } from "@/lib/result-pin";
 import { termLabel } from "@/lib/term-label";
 import { pinHash, pinKey } from "@/server/result-pin/crypto";
 
@@ -274,11 +274,11 @@ async function countTargets(ctx: SchoolContext, request: SlipRequest) {
 export type MadeSlips = { fileName: string; slips: PinSlip[]; runId: string; kind: Plan["kind"]; classId: string; termId: string };
 
 /** Distinct new PINs whose hashes are not in the database yet (AC-7). */
-async function freshPins(tx: Executor, n: number, key: Buffer) {
+async function freshPins(tx: Executor, n: number, key: Buffer, schoolCode: string) {
   const made = new Map<string, Buffer>();
   while (made.size < n) {
-    const batch = Array.from({ length: n - made.size }, () => makePin(randomBytes));
-    const hashes = batch.map((pin) => pinHash(pin, key));
+    const batch = Array.from({ length: n - made.size }, () => makePin(schoolCode, randomBytes));
+    const hashes = batch.map((pin) => pinHash(normalizePin(pin), key));
     const taken = await tx.select({ hash: resultPin.pinHash }).from(resultPin).where(inArray(resultPin.pinHash, hashes));
     const takenHex = new Set(taken.map((t) => Buffer.from(t.hash).toString("hex")));
     batch.forEach((pin, i) => {
@@ -328,7 +328,7 @@ export async function makeSlips<T>(ctx: SchoolContext, request: SlipRequest, hos
       .insert(resultPinRun)
       .values({ schoolId: ctx.schoolId, termId: plan.termId, classId: plan.classId, kind: plan.kind, slipCount: targets.length, createdBy: by })
       .returning({ id: resultPinRun.id });
-    const pins = await freshPins(tx, targets.length, key);
+    const pins = await freshPins(tx, targets.length, key, info.code);
     await tx.insert(resultPin).values(
       targets.map((t, i) => ({
         schoolId: ctx.schoolId,
