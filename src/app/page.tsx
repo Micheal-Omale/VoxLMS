@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   description: "Modern results compilation, teacher lagging tracking, report card generation, and student result checking.",
 };
 
+export const instant = false;
+
 export default async function Home() {
   // If the user is already signed in, immediately send them to their school or admin console
   const viewer = await getViewer();
