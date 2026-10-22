@@ -71,6 +71,7 @@ type SheetState = { sheet: SheetSnapshot; draft: Draft };
 const READ_ONLY_TEXT: Record<ReadOnlyReason, (termName: string) => string> = {
   closed: (termName) => `${termName} is closed. Scores can only be changed in the current term.`,
   viewingAs: () => "You are viewing as this person. Nothing can be saved.",
+  review: () => "You can review these scores. Only the class’s form teacher can change them.",
   lostAccess: () => "You no longer have this class. Your typed scores are kept on this phone.",
 };
 
@@ -326,7 +327,7 @@ export function ScoreSheet({ draftKey, termName, sheet: initialSheet, lastSavedA
       <div className="flex flex-col gap-3 px-4 pb-4 empty:hidden sm:px-0">
         {readOnly && (
           <Alert role="status" variant={readOnly === "lostAccess" ? "destructive" : "default"} className="border-rule">
-            {readOnly === "closed" ? <LockIcon /> : readOnly === "viewingAs" ? <EyeIcon /> : <UserXIcon />}
+            {readOnly === "closed" ? <LockIcon /> : readOnly === "lostAccess" ? <UserXIcon /> : <EyeIcon />}
             <AlertTitle className="font-semibold">{READ_ONLY_TEXT[readOnly](termName)}</AlertTitle>
           </Alert>
         )}
@@ -458,8 +459,8 @@ export function ScoreSheet({ draftKey, termName, sheet: initialSheet, lastSavedA
 
 /** What this device kept for the sheet, checked against the sheet as it opened (AC-5, AC-9, AC-13). */
 function restoreDraft(draftKey: string, readOnly: ReadOnlyReason | null, opening: SheetSnapshot): { draft: Draft; restoredCount: number; notices: string[] } {
-  // Viewing as can't type, so it never reads or makes a draft.
-  if (readOnly === "viewingAs") return { draft: {}, restoredCount: 0, notices: [] };
+  // Viewing as and review can't type, so they never read or make a draft.
+  if (readOnly === "viewingAs" || readOnly === "review") return { draft: {}, restoredCount: 0, notices: [] };
   const stored = readDraft(draftKey);
   if (readOnly === "closed") {
     // Read only: list what was never saved, never merge it into the sheet.

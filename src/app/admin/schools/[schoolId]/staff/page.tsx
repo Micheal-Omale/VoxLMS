@@ -61,7 +61,7 @@ async function Staff({ params }: { params: Params }) {
           <div className="flex items-center gap-2">
             <span className="font-bold">{[m.title, m.fullName].filter(Boolean).join(" ")}</span>
             {m.role === "principal" && (
-              <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary text-[10px] font-semibold uppercase tracking-wider">
+              <Badge variant="outline" className="border-primary/40 text-primary">
                 Principal
               </Badge>
             )}

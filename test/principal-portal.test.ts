@@ -7,7 +7,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { PrincipalDashboard } from "@/components/principal/principal-dashboard";
-import { assertLeadership, type PrincipalOverview } from "@/server/data";
+import { assertLeadership, assertWritable, type PrincipalOverview, ReadOnlySession, schoolContext } from "@/server/data";
+import { assertNotTeacher } from "@/server/data/access";
 import { NotFound } from "@/server/data/errors";
 
 afterEach(cleanup);
@@ -56,7 +57,7 @@ const mockOverview: PrincipalOverview = {
             id: "t-1",
             title: "Mrs",
             fullName: "Funke Adewale",
-            phone: "0803 123 4567",
+            phone: "+2348031234567",
           },
           totalStudents: 28,
           scores: {
@@ -82,7 +83,7 @@ const mockOverview: PrincipalOverview = {
             id: "t-2",
             title: "Mr",
             fullName: "Ibrahim Musa",
-            phone: "0805 987 6543",
+            phone: "+2348059876543",
           },
           totalStudents: 30,
           scores: {
@@ -123,7 +124,7 @@ const mockOverview: PrincipalOverview = {
             id: "t-3",
             title: "Mr",
             fullName: "Babatunde Raji",
-            phone: "0802 444 5555",
+            phone: "+2348024445555",
           },
           totalStudents: 27,
           scores: {
@@ -164,80 +165,66 @@ describe("Principal Portal - Permissions", () => {
   it("denies regular teachers with NotFound", () => {
     expect(() => assertLeadership({ kind: "teacher", staffId: "t1", readOnly: false })).toThrow(NotFound);
   });
+
+  // A principal reviews every class but never changes a score or comment, and
+  // school setup (terms, students, PIN slips) stays our team's.
+  it("refuses every write from a principal", () => {
+    const principal = schoolContext({ schoolId: "sch-1", userId: "u1", actor: { kind: "principal", staffId: "p1", readOnly: false } });
+    expect(() => assertWritable(principal)).toThrow(ReadOnlySession);
+    expect(() => assertWritable(principal)).toThrow("Only its form teacher can change it.");
+    expect(() => assertNotTeacher(principal, "Term")).toThrow(NotFound);
+    const teacher = schoolContext({ schoolId: "sch-1", userId: "u2", actor: { kind: "teacher", staffId: "t1", readOnly: false } });
+    expect(() => assertWritable(teacher)).not.toThrow();
+  });
 });
 
 describe("Principal Portal - Dashboard UI", () => {
-  it("renders school name, principal details, and executive KPI summary cards", () => {
+  it("shows the school, the term and how far scores and comments are", () => {
     render(h(PrincipalDashboard, { data: mockOverview }));
 
-    expect(screen.getByText("Grace High School")).toBeInTheDocument();
-    expect(screen.getByText("Mr Samuel Adeleke")).toBeInTheDocument();
-    expect(screen.getByText("81%")).toBeInTheDocument(); // score submissions percent
-    expect(screen.getByText("65%")).toBeInTheDocument(); // remarks percent
-    expect(screen.getByText("85")).toBeInTheDocument(); // total students
+    expect(screen.getByRole("heading", { level: 1, name: "Grace High School" })).toBeInTheDocument();
+    expect(screen.getByText(/results not released yet/)).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Subjects with every score in" })).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Form teacher comments written" })).toBeInTheDocument();
+    expect(screen.getByText(/85 students this term/)).toBeInTheDocument();
   });
 
-  it("renders lagging teachers with contact numbers and unfinished subjects", () => {
+  it("lists each class's form teacher, phone and what is left, with its broadsheet", () => {
     render(h(PrincipalDashboard, { data: mockOverview }));
 
-    // Form masters visible
-    expect(screen.getByText("Mrs Funke Adewale")).toBeInTheDocument();
-    expect(screen.getByText("0803 123 4567")).toBeInTheDocument();
-    expect(screen.getByText("Mr Ibrahim Musa")).toBeInTheDocument();
-    expect(screen.getByText("0805 987 6543")).toBeInTheDocument();
+    expect(screen.getByText(/Mrs Funke Adewale/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "+234 805 987 6543" })).toHaveAttribute("href", "tel:+2348059876543");
+    expect(screen.getByText("Scores still missing in Basic Technology (18 students).")).toBeInTheDocument();
+    expect(screen.getAllByText("15 comments still to write.")).toHaveLength(2);
+    expect(screen.getByText("Every score and comment is in.")).toBeInTheDocument();
 
-    // Lagging subjects visible with taker counts
-    expect(screen.getByText("Basic Technology")).toBeInTheDocument();
-    expect(screen.getByText("(12/30)")).toBeInTheDocument();
-    expect(screen.getByText("Chemistry")).toBeInTheDocument();
-    expect(screen.getByText("(10/27)")).toBeInTheDocument();
-
-    // Broadsheet action buttons present
-    const broadsheetLinks = screen.getAllByRole("link", { name: /view broadsheet/i });
-    expect(broadsheetLinks.length).toBe(3);
-    expect(broadsheetLinks[0]).toHaveAttribute("href", "/ghs/classes/cls-jss1/broadsheet");
-    expect(broadsheetLinks[1]).toHaveAttribute("href", "/ghs/classes/cls-jss2/broadsheet");
-    expect(broadsheetLinks[2]).toHaveAttribute("href", "/ghs/classes/cls-ss1/broadsheet");
+    const broadsheets = screen.getAllByText("Broadsheet").map((el) => el.closest("a")!);
+    expect(broadsheets.map((a) => a.getAttribute("href"))).toEqual([
+      "/ghs/classes/cls-jss1/broadsheet",
+      "/ghs/classes/cls-jss2/broadsheet",
+      "/ghs/classes/cls-ss1/broadsheet",
+    ]);
   });
 
-  it("filters classes by lagging status", async () => {
+  it("shows only the classes still to finish", async () => {
     const user = userEvent.setup();
     render(h(PrincipalDashboard, { data: mockOverview }));
 
-    // Click 'Lagging (2)' filter
-    const laggingFilterBtn = screen.getByRole("button", { name: /lagging \(2\)/i });
-    await user.click(laggingFilterBtn);
+    await user.click(screen.getByRole("button", { name: /still to finish \(2\)/i }));
 
-    // JSS 1 Gold (up to date) should be filtered out
     expect(screen.queryByText("JSS 1 Gold")).not.toBeInTheDocument();
-    // JSS 2 Diamond & SS 1 Science should remain
     expect(screen.getByText("JSS 2 Diamond")).toBeInTheDocument();
     expect(screen.getByText("SS 1 Science")).toBeInTheDocument();
   });
 
-  it("searches by teacher name or subject", async () => {
+  it("finds a class by its form teacher", async () => {
     const user = userEvent.setup();
     render(h(PrincipalDashboard, { data: mockOverview }));
 
-    const searchInput = screen.getByPlaceholderText(/search class or teacher/i);
-    await user.type(searchInput, "Funke");
+    await user.type(screen.getByRole("searchbox", { name: /find a class or teacher/i }), "Funke");
 
     expect(screen.getByText("JSS 1 Gold")).toBeInTheDocument();
     expect(screen.queryByText("JSS 2 Diamond")).not.toBeInTheDocument();
     expect(screen.queryByText("SS 1 Science")).not.toBeInTheDocument();
-  });
-
-  it("switches to Master Results (Broadsheet) tab with class matrix", async () => {
-    const user = userEvent.setup();
-    render(h(PrincipalDashboard, { data: mockOverview }));
-
-    const broadsheetTabBtn = screen.getByRole("button", { name: /master results/i });
-    await user.click(broadsheetTabBtn);
-
-    // Master Results table is visible
-    expect(screen.getByText(/Master Compilation Sheets \(Webview\)/i)).toBeInTheDocument();
-    const openBroadsheetBtns = screen.getAllByRole("link", { name: /open broadsheet/i });
-    expect(openBroadsheetBtns.length).toBe(3);
-    expect(openBroadsheetBtns[0]).toHaveAttribute("href", "/ghs/classes/cls-jss1/broadsheet");
   });
 });

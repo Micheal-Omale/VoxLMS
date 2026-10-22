@@ -11,19 +11,23 @@ import { DataError, NotFound } from "./errors";
 // found", so addresses and actions can't be used to probe other classes.
 
 export class ReadOnlySession extends DataError {
-  constructor() {
-    super("You are viewing as this person. Nothing can be saved.");
+  constructor(message = "You are viewing as this person. Nothing can be saved.") {
+    super(message);
   }
 }
 
-/** Refuses every write while our team is viewing as someone. */
+/**
+ * Refuses every write while our team is viewing as someone. A principal
+ * reviews scores and comments but never changes them.
+ */
 export function assertWritable(ctx: SchoolContext) {
+  if (ctx.actor.kind === "principal") throw new ReadOnlySession("You can review this class. Only its form teacher can change it.");
   if (ctx.actor.kind !== "system" && ctx.actor.readOnly) throw new ReadOnlySession();
 }
 
-/** School setup actions (terms, parents, new students) are not a teacher's in Release 1. */
+/** School setup actions (terms, parents, new students, PIN slips) are our team's alone in Release 1. */
 export function assertNotTeacher(ctx: SchoolContext, what: string) {
-  if (ctx.actor.kind === "teacher") throw new NotFound(what);
+  if (ctx.actor.kind === "teacher" || ctx.actor.kind === "principal") throw new NotFound(what);
 }
 
 /** A teacher reaches a class only if they are its form teacher in that session. */

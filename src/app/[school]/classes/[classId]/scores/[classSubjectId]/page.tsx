@@ -50,7 +50,7 @@ async function Sheet({ params, searchParams }: { params: Params; searchParams: S
   if (sheet.subject.classId !== classId) notFound();
 
   const viewingAs = ctx.actor.kind !== "system" && ctx.actor.readOnly;
-  const readOnly: ReadOnlyReason | null = viewingAs ? "viewingAs" : sheet.term.isCurrent ? null : "closed";
+  const readOnly: ReadOnlyReason | null = viewingAs ? "viewingAs" : ctx.actor.kind === "principal" ? "review" : sheet.term.isCurrent ? null : "closed";
   const query = progress.term.isCurrent ? "" : `?term=${progress.term.id}`;
   const classHref = `/${slug}/classes/${classId}${query}`;
   const subjectOptions = progress.subjects.map((s) => ({

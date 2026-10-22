@@ -46,7 +46,7 @@ async function Sheet({ params, searchParams }: { params: Params; searchParams: S
   const read = await getClassRemarks(ctx, { classId, termId }).catch(notFoundOn);
   const { results, remarks } = read;
   const viewingAs = ctx.actor.kind !== "system" && ctx.actor.readOnly;
-  const readOnly: ReadOnlyReason | null = viewingAs ? "viewingAs" : results.term.isCurrent ? null : "closed";
+  const readOnly: ReadOnlyReason | null = viewingAs ? "viewingAs" : ctx.actor.kind === "principal" ? "review" : results.term.isCurrent ? null : "closed";
   const classHref = `/${slug}/classes/${classId}${results.term.isCurrent ? "" : `?term=${results.term.id}`}`;
 
   return (

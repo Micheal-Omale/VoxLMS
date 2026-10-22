@@ -25,6 +25,11 @@ describe("PINs", () => {
       const changed = norm.slice(0, i) + String((Number(norm[i]) + 1) % 10) + norm.slice(i + 1);
       expect(isPinShaped(changed)).toBe(false);
     }
+    // swapping two neighbouring digits (Luhn misses only 09 and 90)
+    const fixed = normalizePin(makePin("GHS", () => Uint8Array.from([4, 8, 2, 1, 0, 9, 3])));
+    expect(fixed.slice(3, 10)).toBe("4821093");
+    const swapped = fixed.slice(0, 3) + fixed[4] + fixed[3] + fixed.slice(5);
+    expect(isPinShaped(swapped)).toBe(false);
     // omitting school initials
     expect(isPinShaped(norm.slice(3))).toBe(false);
   });

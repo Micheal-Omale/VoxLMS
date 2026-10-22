@@ -149,19 +149,21 @@ export function StaffActions(props: Props) {
                 const nextRole = props.role === "principal" ? "teacher" : "principal";
                 start(async () => {
                   const result = await setStaffRoleAction(props.schoolId, props.staffId, nextRole);
-                  if (result.ok) {
-                    toast.add({
-                      title: "Role updated",
-                      description: `${name} is now ${nextRole === "principal" ? "Principal" : "Teacher"}.`,
-                      type: "success",
-                    });
-                    router.refresh();
+                  if (!result.ok) {
+                    toast.add({ title: result.error, type: "error" });
+                    return;
                   }
+                  toast.add({
+                    title: nextRole === "principal" ? `${name} now signs in as principal` : `${name} now signs in as a teacher`,
+                    description: "It takes effect the next time they open a page.",
+                    type: "success",
+                  });
+                  router.refresh();
                 });
               }}
             >
               <ShieldCheckIcon />
-              {props.role === "principal" ? "Change to Teacher" : "Make Principal"}
+              {props.role === "principal" ? "Make a teacher" : "Make principal"}
             </DropdownMenuItem>
             {props.active ? (
               !props.isSelf && (

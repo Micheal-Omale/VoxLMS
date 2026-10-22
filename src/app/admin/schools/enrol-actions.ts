@@ -72,7 +72,7 @@ export async function addTeacherAction(schoolId: string, input: { title?: string
 }
 
 export async function setStaffRoleAction(schoolId: string, staffId: string, role: "teacher" | "principal") {
-  return run(schoolId, (ctx) => setStaffRole(ctx, { staffId: String(staffId), role }));
+  return run(schoolId, (ctx) => setStaffRole(ctx, { staffId: String(staffId), role: role === "principal" ? "principal" : "teacher" }));
 }
 
 export async function saveTeacherAction(schoolId: string, staffId: string, input: { title?: string; fullName: string; phone?: string }) {

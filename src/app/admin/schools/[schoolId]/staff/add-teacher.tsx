@@ -9,6 +9,7 @@ import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "@/components/ui/toast";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 import { addTeacherAction } from "../../enrol-actions";
 import { PasswordDialog, SamePersonDialog, SetupLinkDialog, useLoginActions } from "./login-dialogs";
@@ -108,16 +109,20 @@ export function AddTeacher({ schoolId }: { schoolId: string }) {
             />
           </Field>
           <Field>
-            <FieldLabel htmlFor="new-role">Portal Role</FieldLabel>
-            <select
-              id="new-role"
-              value={values.role}
-              onChange={(e) => setValues((v) => ({ ...v, role: e.target.value as "teacher" | "principal" }))}
-              className="h-9 w-full rounded-md border border-input bg-card px-2.5 py-1 text-xs font-semibold shadow-xs focus-visible:outline-2 focus-visible:outline-primary"
+            <FieldLabel id="new-role-label">Signs in as</FieldLabel>
+            <ToggleGroup
+              variant="outline"
+              value={[values.role]}
+              onValueChange={(v) => v[0] && setValues((x) => ({ ...x, role: v[0] as "teacher" | "principal" }))}
+              aria-labelledby="new-role-label"
             >
-              <option value="teacher">Teacher</option>
-              <option value="principal">Principal</option>
-            </select>
+              <ToggleGroupItem value="teacher" className="flex-1">
+                Teacher
+              </ToggleGroupItem>
+              <ToggleGroupItem value="principal" className="flex-1">
+                Principal
+              </ToggleGroupItem>
+            </ToggleGroup>
           </Field>
         </div>
         {error && (
@@ -128,7 +133,7 @@ export function AddTeacher({ schoolId }: { schoolId: string }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="type-caption text-muted-foreground">
             {values.role === "principal"
-              ? "Creates the Principal's login for the Leadership Portal. Setup link follows immediately."
+              ? "They sign in with this phone number and can see every class, but can't change scores. The setup link comes next."
               : "They sign in with this phone number. Their login is made now, and the setup link comes next."}
           </p>
           <Button type="submit" disabled={pending} className="shrink-0">

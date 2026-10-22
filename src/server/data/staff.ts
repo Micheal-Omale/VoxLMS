@@ -155,13 +155,15 @@ export async function saveTeacher(ctx: SchoolContext, input: TeacherInput & { st
   });
 }
 
-/** Updates a staff member's role between teacher and principal. */
+/** Switches a staff member between teacher and principal. A principal sees every class but changes nothing (assertWritable). */
 export async function setStaffRole(ctx: SchoolContext, input: { staffId: string; role: "teacher" | "principal" }): Promise<FormResult> {
   assertTeam(ctx.actor);
-  await ctx.db
+  const updated = await ctx.db
     .update(staff)
     .set({ role: input.role })
-    .where(and(eq(staff.schoolId, ctx.schoolId), eq(staff.id, input.staffId)));
+    .where(and(eq(staff.schoolId, ctx.schoolId), eq(staff.id, input.staffId)))
+    .returning({ id: staff.id });
+  if (updated.length === 0) throw new NotFound("Staff");
   return { ok: true as const };
 }
 

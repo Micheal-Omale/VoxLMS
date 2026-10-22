@@ -79,76 +79,54 @@ function testResults(): ClassResults {
 }
 
 describe("BroadsheetView (Spec 0015)", () => {
-  it("renders the master compilation matrix with full CA + exam breakdown by default (AC-3)", () => {
-    const res = testResults();
-    render(h(BroadsheetView, { results: res, schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
+  const row = (name: RegExp) => screen.queryByRole("rowheader", { name });
 
-    // Title and metadata
-    expect(screen.getByText(/JSS 2 Gold Master Compilation Sheet/i)).toBeInTheDocument();
-    expect(screen.getByText(/Provisional \(1 incomplete\)/i)).toBeInTheDocument();
+  it("shows every part, total and grade per subject by default (AC-3)", () => {
+    render(h(BroadsheetView, { results: testResults(), schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
 
-    // Subject column groups
-    expect(screen.getAllByText("English Studies").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Mathematics").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 1, name: "JSS 2 Gold broadsheet" })).toBeInTheDocument();
+    expect(document.body).toHaveTextContent("1 student has missing scores");
+    expect(screen.getByRole("columnheader", { name: "English Studies" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Mathematics" })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader", { name: /^CA 1/ })).toHaveLength(2);
+    expect(screen.getAllByRole("columnheader", { name: "Grade" })).toHaveLength(2);
 
-    // Sub-headers for CA 1, CA 2, Exam, Tot, Grd by default
-    expect(screen.getAllByText("CA 1").length).toBe(2);
-    expect(screen.getAllByText("CA 2").length).toBe(2);
-    expect(screen.getAllByText("Tot").length).toBe(2);
-    expect(screen.getAllByText("Grd").length).toBe(2);
-
-    // Students rendered
-    expect(screen.getByText("OKON")).toBeInTheDocument();
-    expect(screen.getByText("BELLO")).toBeInTheDocument();
-    expect(screen.getByText("EZE")).toBeInTheDocument();
-
-    // Ranks and scores
-    expect(screen.getAllByText("1st").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("2nd").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Ranked").length).toBe(2);
+    expect(row(/OKON Emem/)).toBeInTheDocument();
+    expect(row(/BELLO Abdulrahman/)).toBeInTheDocument();
+    expect(row(/EZE Chukwuemeka/)).toBeInTheDocument();
+    expect(screen.getByText("1st of 3")).toBeInTheDocument();
+    expect(screen.getByText("2nd of 3")).toBeInTheDocument();
   });
 
-  it("highlights missing scores and incomplete students (AC-4)", () => {
-    const res = testResults();
-    render(h(BroadsheetView, { results: res, schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
+  it("marks a part not entered and says what is missing (AC-4)", () => {
+    render(h(BroadsheetView, { results: testResults(), schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
 
-    // Eze is incomplete (missing exam)
-    expect(screen.getByText("Incomplete")).toBeInTheDocument();
+    expect(row(/EZE Chukwuemeka/)).toHaveTextContent("Missing Mathematics: Exam");
+    // The missing exam and the subject total it holds back, never a 0.
+    expect(screen.getAllByLabelText("Not entered")).toHaveLength(2);
   });
 
-  it("toggles between full breakdown and totals only (AC-5)", async () => {
+  it("switches between every part and totals only (AC-5)", async () => {
     const user = userEvent.setup();
-    const res = testResults();
-    render(h(BroadsheetView, { results: res, schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
+    render(h(BroadsheetView, { results: testResults(), schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
 
-    expect(screen.getAllByText("CA 1").length).toBe(2);
+    await user.click(screen.getByRole("button", { name: "Totals only" }));
+    expect(screen.queryByRole("columnheader", { name: /^CA 1/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader", { name: "Total" }).length).toBeGreaterThan(0);
 
-    // Switch to Totals Only
-    await user.click(screen.getByRole("button", { name: /Totals Only/i }));
-
-    expect(screen.queryByText("CA 1")).not.toBeInTheDocument();
-    expect(screen.getAllByText("Total").length).toBeGreaterThan(0);
-
-    // Switch back to Full Breakdown
-    await user.click(screen.getByRole("button", { name: /Full Breakdown/i }));
-    expect(screen.getAllByText("CA 1").length).toBe(2);
+    await user.click(screen.getByRole("button", { name: "Every part" }));
+    expect(screen.getAllByRole("columnheader", { name: /^CA 1/ })).toHaveLength(2);
   });
 
-  it("filters to incomplete students only (AC-5)", async () => {
+  it("shows only the students with missing scores (AC-5)", async () => {
     const user = userEvent.setup();
-    const res = testResults();
-    render(h(BroadsheetView, { results: res, schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
+    render(h(BroadsheetView, { results: testResults(), schoolCode: "GHS", backHref: "/ghs/classes/c1" }));
 
-    expect(screen.getByText("OKON")).toBeInTheDocument();
-    expect(screen.getByText("BELLO")).toBeInTheDocument();
-    expect(screen.getByText("EZE")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Missing scores only" }));
 
-    // Click Incomplete Only filter
-    await user.click(screen.getByRole("button", { name: /Incomplete Only/i }));
-
-    expect(screen.queryByText("OKON")).not.toBeInTheDocument();
-    expect(screen.queryByText("BELLO")).not.toBeInTheDocument();
-    expect(screen.getByText("EZE")).toBeInTheDocument();
+    expect(row(/OKON Emem/)).not.toBeInTheDocument();
+    expect(row(/BELLO Abdulrahman/)).not.toBeInTheDocument();
+    expect(row(/EZE Chukwuemeka/)).toBeInTheDocument();
   });
 
   it("contains no downloadable export buttons (AC-1)", () => {

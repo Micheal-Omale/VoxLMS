@@ -46,4 +46,4 @@ export type SaveOutcome =
   | { kind: "updated" };
 
 /** Why a sheet can't be typed in. */
-export type ReadOnlyReason = "closed" | "viewingAs" | "lostAccess";
+export type ReadOnlyReason = "closed" | "viewingAs" | "review" | "lostAccess";

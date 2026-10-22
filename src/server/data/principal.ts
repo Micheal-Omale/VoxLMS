@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, asc, eq, sql } from "drizzle-orm";
 
-import { classTeacher, enrolment, school, schoolClass, section, staff, termReport } from "@/db/schema";
+import { classTeacher, school, schoolClass, section, staff } from "@/db/schema";
 
 import type { Actor, SchoolContext } from "./context";
 import { NotFound } from "./errors";

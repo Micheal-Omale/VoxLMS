@@ -6,7 +6,6 @@ import { worstCaseInput } from "@/app/design/report-card/worst-case";
 import { PinForm } from "@/app/result/pin-form";
 import { ResultView } from "@/app/result/result-view";
 import { Logo } from "@/components/brand/logo";
-import { Badge } from "@/components/ui/badge";
 import { buildReportCards } from "@/lib/report-card";
 import { pinMessage, type PinRefusal } from "@/server/data/pin-results";
 

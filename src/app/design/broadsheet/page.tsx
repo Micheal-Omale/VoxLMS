@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import { BroadsheetSkeleton } from "@/components/broadsheet/broadsheet-skeleton";
 import { BroadsheetView } from "@/components/broadsheet/broadsheet-view";
-import { demoResults } from "@/app/design/results/page";
+import { demoResults } from "@/app/design/demo-results";
 
 export const metadata: Metadata = { title: "Broadsheet Preview · Design" };
 

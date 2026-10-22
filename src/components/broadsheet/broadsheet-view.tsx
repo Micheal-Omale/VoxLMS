@@ -2,27 +2,36 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftIcon, CheckCircle2Icon, AlertCircleIcon, ArrowUpDownIcon, FilterIcon, SlidersHorizontalIcon } from "lucide-react";
+import { ArrowLeftIcon, SearchIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { formatHundredths, formatTenths, missingLabel, ordinal, type StudentResult } from "@/lib/results";
 import { displayStudentId } from "@/lib/student-number";
-import { formatHundredths, formatTenths, ordinal, type StudentResult } from "@/lib/results";
 import { termLabel } from "@/lib/term-label";
 import { cn } from "@/lib/utils";
 import type { ClassResults } from "@/server/data";
 
 type SortMode = "position" | "name";
 type ViewMode = "full" | "compact";
+type Split = ClassResults["split"];
+type Line = StudentResult["subjects"][number];
 
-interface BroadsheetViewProps {
-  results: ClassResults;
-  schoolCode: string;
-  backHref: string;
-  backLabel?: string;
-}
+// Every cell is opaque so pinned columns never show the scores scrolling under them.
+const HEAD = "border-b border-rule bg-background px-2 py-2 type-caption font-semibold text-muted-foreground";
+const CELL = "border-b border-rule px-2 py-2 type-figure";
+// The right edge of a subject group and of the pinned name column.
+const GROUP_EDGE = "border-r border-r-input";
 
-export function BroadsheetView({ results, schoolCode, backHref, backLabel = "Back to class" }: BroadsheetViewProps) {
+/**
+ * The class broadsheet (spec 0015): every student against every subject, all
+ * figures straight from Results computation (spec 0010). A part not entered is
+ * a red dash, never a 0; a subject the student doesn't take is a quiet dash.
+ */
+export function BroadsheetView({ results, schoolCode, backHref, backLabel = "Back to class" }: { results: ClassResults; schoolCode: string; backHref: string; backLabel?: string }) {
   const [sortMode, setSortMode] = useState<SortMode>("position");
   const [viewMode, setViewMode] = useState<ViewMode>("full");
   const [incompleteOnly, setIncompleteOnly] = useState(false);
@@ -30,418 +39,142 @@ export function BroadsheetView({ results, schoolCode, backHref, backLabel = "Bac
 
   const { cls, term, session, split, subjects, students } = results;
 
-  // Filter & sort students
-  const displayedStudents = useMemo(() => {
-    let list = [...students];
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = students.filter(
+      (s) =>
+        (!incompleteOnly || s.status === "incomplete") &&
+        (!q || s.surname.toLowerCase().includes(q) || s.otherNames.toLowerCase().includes(q) || displayStudentId(schoolCode, s).toLowerCase().includes(q)),
+    );
+    const byName = (a: StudentResult, b: StudentResult) => a.surname.localeCompare(b.surname) || a.otherNames.localeCompare(b.otherNames);
+    return list.sort(
+      sortMode === "name"
+        ? byName
+        : (a, b) => (a.position ?? Number.MAX_SAFE_INTEGER) - (b.position ?? Number.MAX_SAFE_INTEGER) || byName(a, b),
+    );
+  }, [students, sortMode, incompleteOnly, search, schoolCode]);
 
-    if (incompleteOnly) {
-      list = list.filter((s) => s.status === "incomplete");
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(
-        (s) =>
-          s.surname.toLowerCase().includes(q) ||
-          s.otherNames.toLowerCase().includes(q) ||
-          (s.admissionNo && s.admissionNo.toLowerCase().includes(q)) ||
-          String(s.studentNo).includes(q),
-      );
-    }
-
-    if (sortMode === "name") {
-      list.sort((a, b) => {
-        const s = a.surname.localeCompare(b.surname);
-        if (s !== 0) return s;
-        return a.otherNames.localeCompare(b.otherNames);
-      });
-    } else {
-      // Position order: ranked first by position, then incomplete by surname
-      list.sort((a, b) => {
-        if (a.status === "ranked" && b.status === "ranked") {
-          return (a.position ?? 0) - (b.position ?? 0);
-        }
-        if (a.status === "ranked") return -1;
-        if (b.status === "ranked") return 1;
-        return a.surname.localeCompare(b.surname);
-      });
-    }
-
-    return list;
-  }, [students, sortMode, incompleteOnly, search]);
-
-  const subColSpan = viewMode === "full" ? split.length + 2 : 2;
+  const full = viewMode === "full";
+  const perSubject = full ? split.length + 2 : 2;
+  const columns = 2 + subjects.length * perSubject + 3;
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      {/* Top Header / Meta Bar */}
-      <header className="flex flex-col gap-4 border-b border-rule pb-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={backHref} />} className="-ml-3 text-muted-foreground">
-            <ArrowLeftIcon data-icon="inline-start" />
-            {backLabel}
-          </Button>
-
-          <div className="flex items-center gap-2">
-            {results.final ? (
-              <Badge variant="outline" className="gap-1 border-success/40 bg-success-wash text-success font-medium">
-                <CheckCircle2Icon className="size-3.5" />
-                Final Results
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="gap-1 border-warning/40 bg-warning-wash text-warning font-medium">
-                <AlertCircleIcon className="size-3.5" />
-                Provisional ({results.incompleteCount} incomplete)
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-          <div>
-            <h1 className="type-title text-2xl font-bold tracking-tight sm:text-3xl">
-              {cls.name} Master Compilation Sheet
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {termLabel(term.number, session.name)} · {results.section.name} · {students.length} students enrolled
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <div>
-              Class Average:{" "}
-              <span className="type-figure font-bold text-foreground">
-                {results.classAverage === null ? "–" : `${formatHundredths(results.classAverage)}%`}
-              </span>
-            </div>
-            <div>
-              Ranked:{" "}
-              <span className="type-figure font-bold text-foreground">
-                {students.length - results.incompleteCount} / {students.length}
-              </span>
-            </div>
-          </div>
-        </div>
+    <div className="flex w-full flex-col gap-5">
+      <header className="flex flex-col items-start gap-1">
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={backHref} />} className="-ml-3 text-muted-foreground">
+          <ArrowLeftIcon data-icon="inline-start" />
+          {backLabel}
+        </Button>
+        <h1 className="type-display">{cls.name} broadsheet</h1>
+        <p className="text-muted-foreground">
+          {termLabel(term.number, session.name)} · {results.section.name} · <span className="type-figure">{students.length}</span> {students.length === 1 ? "student" : "students"}
+          {results.classAverage !== null && (
+            <>
+              {" "}
+              · class average <span className="type-figure font-semibold text-foreground">{formatHundredths(results.classAverage)}%</span>
+            </>
+          )}
+        </p>
+        {results.final ? (
+          <Badge className="mt-1 bg-success-wash text-success">Every result is in</Badge>
+        ) : (
+          <Badge className="mt-1 bg-destructive-wash text-destructive">
+            <span className="type-figure">{results.incompleteCount}</span> {results.incompleteCount === 1 ? "student has" : "students have"} missing scores
+          </Badge>
+        )}
       </header>
 
-      {/* Toolbar Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-muted/40 p-3 rounded-xl border border-rule">
-        <div className="flex flex-wrap items-center gap-2">
-          {/* View Toggle */}
-          <div className="flex items-center rounded-lg border border-input bg-card p-0.5 text-xs shadow-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode("full")}
-              className={cn(
-                "rounded-md px-3 py-1.5 font-medium transition-colors",
-                viewMode === "full" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Full Breakdown
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("compact")}
-              className={cn(
-                "rounded-md px-3 py-1.5 font-medium transition-colors",
-                viewMode === "compact" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Totals Only
-            </button>
-          </div>
-
-          {/* Sort Switcher */}
-          <div className="flex items-center rounded-lg border border-input bg-card p-0.5 text-xs shadow-xs">
-            <button
-              type="button"
-              onClick={() => setSortMode("position")}
-              className={cn(
-                "rounded-md px-2.5 py-1.5 font-medium transition-colors flex items-center gap-1.5",
-                sortMode === "position" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <ArrowUpDownIcon className="size-3" />
-              By Rank
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode("name")}
-              className={cn(
-                "rounded-md px-2.5 py-1.5 font-medium transition-colors flex items-center gap-1.5",
-                sortMode === "name" ? "bg-primary text-primary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Alphabetical
-            </button>
-          </div>
-
-          {/* Incomplete Filter */}
-          <button
-            type="button"
-            onClick={() => setIncompleteOnly((v) => !v)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors shadow-xs",
-              incompleteOnly
-                ? "border-warning bg-warning-wash text-warning font-semibold"
-                : "border-input bg-card text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <FilterIcon className="size-3" />
-            Incomplete Only ({results.incompleteCount})
-          </button>
-        </div>
-
-        {/* Quick Search */}
-        <div className="w-full sm:w-64">
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search student or ID..."
-            className="h-8 w-full rounded-lg border border-input bg-card px-3 text-xs outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-1 focus:ring-ring"
-          />
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <ToggleGroup variant="outline" size="sm" value={[viewMode]} onValueChange={(v) => v[0] && setViewMode(v[0] as ViewMode)} aria-label="Columns">
+          <ToggleGroupItem value="full">Every part</ToggleGroupItem>
+          <ToggleGroupItem value="compact">Totals only</ToggleGroupItem>
+        </ToggleGroup>
+        <ToggleGroup variant="outline" size="sm" value={[sortMode]} onValueChange={(v) => v[0] && setSortMode(v[0] as SortMode)} aria-label="Order">
+          <ToggleGroupItem value="position">By position</ToggleGroupItem>
+          <ToggleGroupItem value="name">By name</ToggleGroupItem>
+        </ToggleGroup>
+        <Toggle variant="outline" size="sm" pressed={incompleteOnly} onPressedChange={setIncompleteOnly} disabled={results.incompleteCount === 0} className="w-fit">
+          Missing scores only
+        </Toggle>
+        <InputGroup className="sm:ml-auto sm:w-64">
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Find a student" aria-label="Find a student" />
+        </InputGroup>
       </div>
 
-      {/* Main Matrix Table */}
-      <div className="relative max-h-[calc(100vh-16rem)] min-h-[480px] w-full overflow-auto rounded-xl border border-rule bg-card shadow-sm">
-        <table className="w-full border-separate border-spacing-0 text-left text-xs sm:text-sm">
-          {/* Header Rows */}
-          <thead>
-            {/* Top Tier: Subject Names & Groups */}
-            <tr className="bg-muted/95 backdrop-blur-md">
-              <th
-                rowSpan={2}
-                className="sticky left-0 top-0 z-30 w-12 min-w-12 border-b-2 border-r border-rule bg-muted/95 px-2 py-2 text-center font-bold"
-              >
+      <div className="max-h-[calc(100dvh-12rem)] overflow-auto rounded-xl border border-rule bg-card">
+        <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
+          <thead className="sticky top-0 z-20">
+            <tr>
+              <th rowSpan={2} scope="col" className={cn(HEAD, "sticky left-0 z-10 w-12 min-w-12 text-center")}>
                 Pos
               </th>
-              <th
-                rowSpan={2}
-                className="sticky left-12 top-0 z-30 w-44 min-w-44 border-b-2 border-r border-rule bg-muted/95 px-3 py-2 font-bold sm:w-56 sm:min-w-56"
-              >
-                Student Name
+              <th rowSpan={2} scope="col" className={cn(HEAD, GROUP_EDGE, "sticky left-12 z-10 w-40 min-w-40 text-left sm:w-56 sm:min-w-56")}>
+                Student
               </th>
-              <th
-                rowSpan={2}
-                className="sticky left-[14rem] top-0 z-30 w-24 min-w-24 border-b-2 border-r-2 border-rule bg-muted/95 px-2 py-2 font-bold sm:left-[17rem]"
-              >
-                ID / No.
-              </th>
-
-              {/* Subject Groups */}
               {subjects.map((subj) => (
-                <th
-                  key={subj.classSubjectId}
-                  colSpan={subColSpan}
-                  className="sticky top-0 z-20 border-b border-r-2 border-rule bg-muted/95 px-2 py-2 text-center font-bold"
-                >
-                  <div className="flex flex-col items-center justify-center">
-                    <span className="truncate max-w-[200px]" title={subj.name}>
-                      {subj.name}
-                    </span>
-                    {subj.isElective && (
-                      <span className="text-[10px] font-normal text-muted-foreground uppercase tracking-wider">
-                        Elective
-                      </span>
-                    )}
-                  </div>
+                <th key={subj.classSubjectId} colSpan={perSubject} scope="colgroup" className={cn(HEAD, GROUP_EDGE, "max-w-48 font-bold text-foreground")}>
+                  <span className="block truncate" title={subj.name}>
+                    {subj.name}
+                  </span>
+                  {subj.isElective && <span className="block font-normal text-muted-foreground">Elective</span>}
                 </th>
               ))}
-
-              {/* Summary Group */}
-              <th
-                colSpan={4}
-                className="sticky top-0 z-20 border-b border-rule bg-muted/95 px-3 py-2 text-center font-bold"
-              >
-                Term Summary
+              <th colSpan={3} scope="colgroup" className={cn(HEAD, "font-bold text-foreground")}>
+                Term
               </th>
             </tr>
-
-            {/* Sub Tier: Components (CA, Exam, Total, Grade) */}
-            <tr className="bg-muted/90 backdrop-blur-md">
+            <tr>
               {subjects.map((subj) => (
-                <ComponentSubHeaders
-                  key={subj.classSubjectId}
-                  split={split}
-                  viewMode={viewMode}
-                />
+                <PartHeaders key={subj.classSubjectId} split={split} full={full} />
               ))}
-
-              {/* Summary Sub-headers */}
-              <th className="sticky top-[38px] z-20 border-b-2 border-r border-rule bg-muted/90 px-2.5 py-1.5 text-right font-semibold text-muted-foreground">
+              <th scope="col" className={cn(HEAD, "text-right")}>
                 Total
               </th>
-              <th className="sticky top-[38px] z-20 border-b-2 border-r border-rule bg-muted/90 px-2.5 py-1.5 text-right font-semibold text-muted-foreground">
-                Avg %
+              <th scope="col" className={cn(HEAD, "text-right")}>
+                Average
               </th>
-              <th className="sticky top-[38px] z-20 border-b-2 border-r border-rule bg-muted/90 px-2 py-1.5 text-center font-semibold text-muted-foreground">
-                Rank
-              </th>
-              <th className="sticky top-[38px] z-20 border-b-2 border-rule bg-muted/90 px-2.5 py-1.5 text-center font-semibold text-muted-foreground">
-                Status
+              <th scope="col" className={cn(HEAD, "text-right")}>
+                Position
               </th>
             </tr>
           </thead>
 
-          {/* Student Rows */}
           <tbody>
-            {displayedStudents.length === 0 ? (
+            {shown.length === 0 ? (
               <tr>
-                <td
-                  colSpan={3 + subjects.length * subColSpan + 4}
-                  className="p-12 text-center text-muted-foreground"
-                >
-                  No students found matching current filters.
+                <td colSpan={columns} className="p-10 text-center text-muted-foreground">
+                  No student matches.
                 </td>
               </tr>
             ) : (
-              displayedStudents.map((s, index) => {
-                const isRanked = s.status === "ranked";
-                const isEven = index % 2 === 0;
-
-                return (
-                  <tr
-                    key={s.studentId}
-                    className={cn(
-                      "group transition-colors hover:bg-muted/50",
-                      isEven ? "bg-card" : "bg-muted/15",
-                    )}
-                  >
-                    {/* Position */}
-                    <td className="sticky left-0 z-10 border-b border-r border-rule bg-inherit px-2 py-2 text-center font-semibold type-figure">
-                      {isRanked ? (
-                        <RankBadge position={s.position!} />
-                      ) : (
-                        <span className="text-muted-foreground">–</span>
-                      )}
-                    </td>
-
-                    {/* Student Name */}
-                    <td className="sticky left-12 z-10 border-b border-r border-rule bg-inherit px-3 py-2 font-medium">
-                      <span className="font-bold text-foreground">
-                        {s.surname.toUpperCase()}
-                      </span>
-                      {", "}
-                      <span className="text-muted-foreground">{s.otherNames}</span>
-                    </td>
-
-                    {/* ID */}
-                    <td className="sticky left-[14rem] z-10 border-b border-r-2 border-rule bg-inherit px-2 py-2 type-figure text-xs text-muted-foreground sm:left-[17rem]">
-                      {displayStudentId(schoolCode, s)}
-                    </td>
-
-                    {/* Subject Cells */}
-                    {subjects.map((subj) => {
-                      const line = s.subjects.find((l) => l.classSubjectId === subj.classSubjectId);
-                      return (
-                        <SubjectScoreCells
-                          key={subj.classSubjectId}
-                          split={split}
-                          line={line}
-                          viewMode={viewMode}
-                        />
-                      );
-                    })}
-
-                    {/* Summary Columns */}
-                    <td className="border-b border-r border-rule px-2.5 py-2 text-right type-figure font-semibold">
-                      {s.total !== null ? formatTenths(s.total) : <span className="text-muted-foreground">–</span>}
-                    </td>
-                    <td className="border-b border-r border-rule px-2.5 py-2 text-right type-figure font-bold">
-                      {s.average !== null ? (
-                        `${formatHundredths(s.average)}%`
-                      ) : (
-                        <span className="text-muted-foreground">–</span>
-                      )}
-                    </td>
-                    <td className="border-b border-r border-rule px-2 py-2 text-center type-figure font-medium">
-                      {s.position !== null ? ordinal(s.position) : <span className="text-muted-foreground">–</span>}
-                    </td>
-                    <td className="border-b border-rule px-2.5 py-2 text-center">
-                      {isRanked ? (
-                        <span className="inline-flex items-center text-xs font-medium text-success">
-                          Ranked
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-xs font-semibold text-warning" title={s.missing.map(m => `${m.subjectName}: ${m.partLabels.join(", ")}`).join(" · ")}>
-                          Incomplete
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
+              shown.map((s) => (
+                <tr key={s.studentId}>
+                  <td className={cn(CELL, "sticky left-0 z-10 bg-card text-center font-semibold")}>{s.position !== null ? s.position : <Dash />}</td>
+                  <th scope="row" className={cn(CELL, GROUP_EDGE, "sticky left-12 z-10 bg-card text-left font-normal")}>
+                    <span className="block truncate font-bold">
+                      {s.surname.toUpperCase()} <span className="font-normal">{s.otherNames}</span>
+                    </span>
+                    <span className="block type-caption text-muted-foreground">{displayStudentId(schoolCode, s)}</span>
+                    {s.status === "incomplete" && <span className="block type-caption text-destructive">Missing {missingLabel(s.missing)}</span>}
+                  </th>
+                  {subjects.map((subj) => (
+                    <SubjectCells key={subj.classSubjectId} split={split} full={full} line={s.subjects.find((l) => l.classSubjectId === subj.classSubjectId)} />
+                  ))}
+                  <td className={cn(CELL, "text-right font-semibold")}>{s.total !== null ? formatTenths(s.total) : <Dash />}</td>
+                  <td className={cn(CELL, "text-right font-bold")}>{s.average !== null ? `${formatHundredths(s.average)}%` : <Dash />}</td>
+                  <td className={cn(CELL, "text-right whitespace-nowrap")}>{s.position !== null ? `${ordinal(s.position)} of ${results.numberInClass}` : <Dash />}</td>
+                </tr>
+              ))
             )}
           </tbody>
 
-          {/* Footer / Summary Rows */}
           <tfoot>
-            {/* Subject Average Row */}
-            <tr className="bg-muted/80 font-semibold border-t-2 border-rule">
-              <td
-                colSpan={3}
-                className="sticky left-0 z-20 border-b border-r-2 border-rule bg-muted/95 px-3 py-2 font-bold text-foreground"
-              >
-                Class Average
-              </td>
-              {subjects.map((subj) => (
-                <SubjectStatCell
-                  key={subj.classSubjectId}
-                  splitLength={split.length}
-                  viewMode={viewMode}
-                  value={subj.classAverage !== null ? formatHundredths(subj.classAverage) : "–"}
-                />
-              ))}
-              <td className="border-b border-r border-rule px-2.5 py-2 text-right type-figure font-bold">
-                –
-              </td>
-              <td className="border-b border-r border-rule px-2.5 py-2 text-right type-figure font-bold text-foreground">
-                {results.classAverage !== null ? `${formatHundredths(results.classAverage)}%` : "–"}
-              </td>
-              <td colSpan={2} className="border-b border-rule bg-muted/80" />
-            </tr>
-
-            {/* Subject Highest Row */}
-            <tr className="bg-muted/60 font-medium">
-              <td
-                colSpan={3}
-                className="sticky left-0 z-20 border-b border-r-2 border-rule bg-muted/95 px-3 py-1.5 text-xs font-semibold text-success"
-              >
-                Highest
-              </td>
-              {subjects.map((subj) => (
-                <SubjectStatCell
-                  key={subj.classSubjectId}
-                  splitLength={split.length}
-                  viewMode={viewMode}
-                  value={subj.highest !== null ? formatTenths(subj.highest) : "–"}
-                  className="text-success font-semibold"
-                />
-              ))}
-              <td colSpan={4} className="border-b border-rule bg-muted/60" />
-            </tr>
-
-            {/* Subject Lowest Row */}
-            <tr className="bg-muted/40 font-medium">
-              <td
-                colSpan={3}
-                className="sticky left-0 z-20 border-r-2 border-rule bg-muted/95 px-3 py-1.5 text-xs font-semibold text-muted-foreground"
-              >
-                Lowest
-              </td>
-              {subjects.map((subj) => (
-                <SubjectStatCell
-                  key={subj.classSubjectId}
-                  splitLength={split.length}
-                  viewMode={viewMode}
-                  value={subj.lowest !== null ? formatTenths(subj.lowest) : "–"}
-                  className="text-muted-foreground"
-                />
-              ))}
-              <td colSpan={4} className="bg-muted/40" />
-            </tr>
+            <StatRow label="Class average" split={split} full={full} values={subjects.map((s) => (s.classAverage !== null ? formatHundredths(s.classAverage) : null))} overall={results.classAverage !== null ? `${formatHundredths(results.classAverage)}%` : null} />
+            <StatRow label="Highest" split={split} full={full} values={subjects.map((s) => (s.highest !== null ? formatTenths(s.highest) : null))} />
+            <StatRow label="Lowest" split={split} full={full} values={subjects.map((s) => (s.lowest !== null ? formatTenths(s.lowest) : null))} />
           </tfoot>
         </table>
       </div>
@@ -449,195 +182,86 @@ export function BroadsheetView({ results, schoolCode, backHref, backLabel = "Bac
   );
 }
 
-function ComponentSubHeaders({
-  split,
-  viewMode,
-}: {
-  split: ClassResults["split"];
-  viewMode: ViewMode;
-}) {
-  if (viewMode === "compact") {
-    return (
-      <>
-        <th className="sticky top-[38px] z-20 w-16 min-w-16 border-b-2 border-r border-rule/50 bg-muted/90 px-1.5 py-1 text-center font-bold text-muted-foreground">
-          Total
-        </th>
-        <th className="sticky top-[38px] z-20 w-12 min-w-12 border-b-2 border-r-2 border-rule bg-muted/90 px-1 py-1 text-center font-bold text-muted-foreground">
-          Grd
-        </th>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {split.map((part) => (
-        <th
-          key={part.key}
-          className="sticky top-[38px] z-20 w-14 min-w-14 border-b-2 border-r border-rule/50 bg-muted/90 px-1 py-1 text-center font-semibold text-muted-foreground text-[11px]"
-          title={`${part.label} (Max: ${part.max})`}
-        >
-          {part.label}
-          <span className="block text-[10px] font-normal opacity-70">
-            /{part.max}
-          </span>
-        </th>
-      ))}
-      <th className="sticky top-[38px] z-20 w-14 min-w-14 border-b-2 border-r border-rule/50 bg-muted/90 px-1 py-1 text-center font-bold text-foreground text-[11px]">
-        Tot
-      </th>
-      <th className="sticky top-[38px] z-20 w-11 min-w-11 border-b-2 border-r-2 border-rule bg-muted/90 px-1 py-1 text-center font-bold text-muted-foreground text-[11px]">
-        Grd
-      </th>
-    </>
-  );
-}
-
-function SubjectScoreCells({
-  split,
-  line,
-  viewMode,
-}: {
-  split: ClassResults["split"];
-  line: StudentResult["subjects"][number] | undefined;
-  viewMode: ViewMode;
-}) {
-  // If student doesn't take this subject (not registered elective)
-  if (!line) {
-    const colCount = viewMode === "full" ? split.length + 2 : 2;
-    return (
-      <td
-        colSpan={colCount}
-        className="border-b border-r-2 border-rule bg-muted/10 text-center text-muted-foreground/30 font-mono text-xs select-none"
-      >
-        —
-      </td>
-    );
-  }
-
-  if (viewMode === "compact") {
-    return (
-      <>
-        <td className="border-b border-r border-rule/50 px-1.5 py-1.5 text-center font-bold type-figure">
-          {line.total !== null ? formatTenths(line.total) : <span className="text-destructive font-bold">!</span>}
-        </td>
-        <td className="border-b border-r-2 border-rule px-1 py-1.5 text-center font-bold text-xs">
-          {line.grade ?? "–"}
-        </td>
-      </>
-    );
-  }
-
-  return (
-    <>
-      {split.map((part) => {
-        const val = line.scores[part.key];
-        const isMissing = val === undefined;
-
-        return (
-          <td
-            key={part.key}
-            className={cn(
-              "border-b border-r border-rule/50 px-1 py-1.5 text-center type-figure text-xs font-mono",
-              isMissing ? "bg-destructive/10 text-destructive font-bold" : "text-foreground",
-            )}
-          >
-            {isMissing ? "—" : val}
-          </td>
-        );
-      })}
-
-      {/* Subject Total */}
-      <td
-        className={cn(
-          "border-b border-r border-rule/50 px-1 py-1.5 text-center font-bold type-figure text-xs",
-          line.total === null ? "bg-destructive/10 text-destructive" : "text-foreground",
-        )}
-      >
-        {line.total !== null ? formatTenths(line.total) : "—"}
-      </td>
-
-      {/* Subject Grade */}
-      <td className="border-b border-r-2 border-rule px-1 py-1.5 text-center font-bold text-xs">
-        <GradeText grade={line.grade} />
-      </td>
-    </>
-  );
-}
-
-function SubjectStatCell({
-  splitLength,
-  viewMode,
-  value,
-  className,
-}: {
-  splitLength: number;
-  viewMode: ViewMode;
-  value: string;
-  className?: string;
-}) {
-  if (viewMode === "compact") {
-    return (
-      <>
-        <td className={cn("border-b border-r border-rule/50 px-1.5 py-1 text-center font-mono type-figure text-xs", className)}>
-          {value}
-        </td>
-        <td className="border-b border-r-2 border-rule px-1 py-1" />
-      </>
-    );
-  }
-
-  return (
-    <>
-      {Array.from({ length: splitLength }).map((_, i) => (
-        <td key={i} className="border-b border-r border-rule/50 bg-inherit" />
-      ))}
-      <td className={cn("border-b border-r border-rule/50 px-1 py-1 text-center font-mono type-figure text-xs", className)}>
-        {value}
-      </td>
-      <td className="border-b border-r-2 border-rule bg-inherit" />
-    </>
-  );
-}
-
-function GradeText({ grade }: { grade: string | null }) {
-  if (!grade) return <span className="text-muted-foreground">–</span>;
-  const isTop = grade === "A" || grade === "A1";
-  const isFail = grade === "F" || grade === "F9";
-  return (
-    <span
-      className={cn(
-        isTop && "text-success font-black",
-        isFail && "text-destructive font-black",
-        !isTop && !isFail && "text-foreground font-semibold",
-      )}
-    >
-      {grade}
+function Dash({ missing }: { missing?: boolean }) {
+  return missing ? (
+    <span className="text-destructive" aria-label="Not entered">
+      –
+    </span>
+  ) : (
+    <span className="text-muted-foreground" aria-label="None">
+      –
     </span>
   );
 }
 
-function RankBadge({ position }: { position: number }) {
-  if (position === 1) {
+function PartHeaders({ split, full }: { split: Split; full: boolean }) {
+  return (
+    <>
+      {full &&
+        split.map((part) => (
+          <th key={part.key} scope="col" className={cn(HEAD, "min-w-12 text-right font-normal")}>
+            <span className="block whitespace-nowrap">{part.label}</span>
+            <span className="block type-figure">{part.max}</span>
+          </th>
+        ))}
+      <th scope="col" className={cn(HEAD, "min-w-14 text-right text-foreground")}>
+        Total
+      </th>
+      <th scope="col" className={cn(HEAD, GROUP_EDGE, "min-w-12 text-center text-foreground")}>
+        Grade
+      </th>
+    </>
+  );
+}
+
+function SubjectCells({ split, full, line }: { split: Split; full: boolean; line: Line | undefined }) {
+  // Not taken (an elective the student isn't registered for).
+  if (!line) {
     return (
-      <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-500/20 text-xs font-black text-amber-700 dark:text-amber-400">
-        1st
-      </span>
+      <td colSpan={full ? split.length + 2 : 2} className={cn(CELL, GROUP_EDGE, "text-center")}>
+        <Dash />
+      </td>
     );
   }
-  if (position === 2) {
-    return (
-      <span className="inline-flex size-6 items-center justify-center rounded-full bg-slate-400/25 text-xs font-bold text-slate-700 dark:text-slate-300">
-        2nd
-      </span>
-    );
-  }
-  if (position === 3) {
-    return (
-      <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-700/15 text-xs font-bold text-amber-800 dark:text-amber-500">
-        3rd
-      </span>
-    );
-  }
-  return <span className="text-muted-foreground text-xs">{ordinal(position)}</span>;
+  return (
+    <>
+      {full &&
+        split.map((part) => {
+          const value = line.scores[part.key];
+          return (
+            <td key={part.key} className={cn(CELL, "text-right", value === undefined && "bg-destructive-wash")}>
+              {value === undefined ? <Dash missing /> : value}
+            </td>
+          );
+        })}
+      <td className={cn(CELL, "text-right font-bold", line.total === null && "bg-destructive-wash")}>{line.total !== null ? formatTenths(line.total) : <Dash missing />}</td>
+      <td className={cn(CELL, GROUP_EDGE, "text-center font-bold")}>{line.grade ?? <Dash />}</td>
+    </>
+  );
+}
+
+function StatRow({ label, split, full, values, overall }: { label: string; split: Split; full: boolean; values: (string | null)[]; overall?: string | null }) {
+  return (
+    <tr>
+      <th colSpan={2} scope="row" className={cn(CELL, GROUP_EDGE, "sticky left-0 z-10 bg-background text-left font-semibold")}>
+        {label}
+      </th>
+      {values.map((value, i) => (
+        <StatCells key={i} split={split} full={full} value={value} />
+      ))}
+      <td className={cn(CELL, "bg-background")} />
+      <td className={cn(CELL, "bg-background text-right font-bold")}>{overall ?? ""}</td>
+      <td className={cn(CELL, "bg-background")} />
+    </tr>
+  );
+}
+
+function StatCells({ split, full, value }: { split: Split; full: boolean; value: string | null }) {
+  return (
+    <>
+      {full && split.map((part) => <td key={part.key} className={cn(CELL, "bg-background")} />)}
+      <td className={cn(CELL, "bg-background text-right font-semibold")}>{value ?? <Dash />}</td>
+      <td className={cn(CELL, GROUP_EDGE, "bg-background")} />
+    </>
+  );
 }
