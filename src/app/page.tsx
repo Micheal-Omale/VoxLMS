@@ -17,8 +17,6 @@ export const metadata: Metadata = {
 
 const CONTACT_MESSAGE = "Hello VoxLMS, I'd like to use VoxLMS for my school's results.";
 
-const naira = (n: number) => `₦${n.toLocaleString("en-NG")}`;
-
 const STEPS = [
   {
     title: "We set up your school",
@@ -105,29 +103,16 @@ export default function Home() {
           <CardSample />
         </section>
 
-        <section id="pricing" aria-labelledby="pricing-title" className="border-y border-rule bg-card">
-          <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
-            <h2 id="pricing-title" className="type-title">
-              Price
+        <section id="start" aria-labelledby="start-title" className="border-t border-rule bg-card">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-start gap-4 px-4 py-12 sm:px-6 sm:py-16">
+            <h2 id="start-title" className="type-title">
+              Want VoxLMS for your school?
             </h2>
-            <p className="mt-1 text-muted-foreground">Our team sets up your school and loads your students on both plans.</p>
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <Plan
-                label={brand.plans.basic.label}
-                price={brand.plans.basic.naira}
-                text={`Report cards and the parents’ result page carry the line “Powered by ${brand.name}”.`}
-              />
-              <Plan label={brand.plans.schoolLogo.label} price={brand.plans.schoolLogo.naira} text="Report cards and the parents’ result page carry your school’s logo." />
-            </div>
+            <p className="max-w-2xl text-muted-foreground">
+              Send us a message on WhatsApp and we’ll get you on board. We set up your classes, subjects and students for you, and show your teachers how to enter scores.
+            </p>
+            <ContactButton />
           </div>
-        </section>
-
-        <section aria-labelledby="start-title" className="mx-auto flex w-full max-w-6xl flex-col items-start gap-4 px-4 py-12 sm:px-6 sm:py-16">
-          <h2 id="start-title" className="type-title">
-            Use it for this term’s results
-          </h2>
-          <p className="max-w-2xl text-muted-foreground">Message us with your school’s name and how many students you have. We’ll set everything up and show your teachers how to enter scores.</p>
-          <ContactButton />
         </section>
       </main>
 
@@ -145,18 +130,6 @@ export default function Home() {
         </div>
       </footer>
     </>
-  );
-}
-
-function Plan({ label, price, text }: { label: string; price: number; text: string }) {
-  return (
-    <div className="flex flex-col gap-2 rounded-xl border border-rule bg-background p-5 sm:p-6">
-      <h3 className="type-heading">{label}</h3>
-      <p>
-        <span className="type-display type-figure">{naira(price)}</span> <span className="text-muted-foreground">{brand.plans.per}</span>
-      </p>
-      <p className="text-muted-foreground">{text}</p>
-    </div>
   );
 }
 
