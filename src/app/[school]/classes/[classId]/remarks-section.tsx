@@ -10,7 +10,7 @@ import type { ClassRemarks, ClassResults } from "@/server/data";
  * a teacher's comment and how many head's comments still wait for scores, in
  * the term the Scores picker chose, and the way into the Remarks sheet.
  */
-export function RemarksSection({ slug, results, remarks }: { slug: string; results: ClassResults; remarks: ClassRemarks }) {
+export function RemarksSection({ slug, results, remarks, review = false }: { slug: string; results: ClassResults; remarks: ClassRemarks; review?: boolean }) {
   const { cls, term } = results;
   const total = remarks.rows.length;
   const written = remarks.rows.filter((r) => r.teacherRemark).length;
@@ -38,7 +38,9 @@ export function RemarksSection({ slug, results, remarks }: { slug: string; resul
         <div className="flex flex-col gap-3 rounded-xl border border-rule bg-card p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex min-w-0 flex-col gap-1">
             <p>
-              Your comment for each student, and the {title}’s comment, which fills itself in from the average.
+              {review
+                ? `The form teacher’s comment for each student, and the ${title}’s comment, which fills itself in from the average.`
+                : `Your comment for each student, and the ${title}’s comment, which fills itself in from the average.`}
             </p>
             {waiting > 0 && (
               <p className="type-caption text-muted-foreground">
@@ -52,8 +54,8 @@ export function RemarksSection({ slug, results, remarks }: { slug: string; resul
               </p>
             )}
           </div>
-          <Button nativeButton={false} render={<Link href={href} />} variant={term.isCurrent ? "default" : "outline"} className="shrink-0 self-start sm:self-center">
-            {term.isCurrent ? (written === 0 ? "Write comments" : "Open remarks") : "View remarks"}
+          <Button nativeButton={false} render={<Link href={href} />} variant={term.isCurrent && !review ? "default" : "outline"} className="shrink-0 self-start sm:self-center">
+            {review || !term.isCurrent ? "View remarks" : written === 0 ? "Write comments" : "Open remarks"}
             <ChevronRightIcon data-icon="inline-end" />
           </Button>
         </div>

@@ -7,7 +7,7 @@ import { BroadsheetView } from "@/components/broadsheet/broadsheet-view";
 import { requireSchoolContext } from "@/server/auth/viewer";
 import { getClassResults, NoCurrentTerm, NotFound } from "@/server/data";
 
-export const metadata: Metadata = { title: "Master Compilation Sheet" };
+export const metadata: Metadata = { title: "Broadsheet" };
 
 type Params = Promise<{ school: string; classId: string }>;
 type SearchParams = Promise<{ term?: string | string[] }>;
@@ -44,7 +44,7 @@ async function BroadsheetLoader({ params, searchParams }: { params: Params; sear
       results={results}
       schoolCode={school.code}
       backHref={backHref}
-      backLabel={`${results.cls.name} Class Page`}
+      backLabel={results.cls.name}
     />
   );
 }

@@ -62,7 +62,7 @@ async function ClassSlips({ params, searchParams }: { params: Params; searchPara
             className="gap-1.5"
           >
             <TablePropertiesIcon data-icon="inline-start" className="size-4" />
-            View Broadsheet
+            Broadsheet
           </Button>
         }
       />

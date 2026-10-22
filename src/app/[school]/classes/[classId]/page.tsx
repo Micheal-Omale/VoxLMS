@@ -58,13 +58,15 @@ async function ClassList({ params, searchParams }: { params: Params; searchParam
   ]);
   const { cls, term, session, students } = page;
   const boys = students.filter((s) => s.gender === "male").length;
+  // A principal reviews every class but writes nothing (assertWritable).
+  const review = ctx.actor.kind === "principal";
 
   return (
     <>
       <div className="flex flex-col items-start gap-1">
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href={`/${slug}`} />} className="-ml-3 text-muted-foreground">
           <ChevronLeftIcon data-icon="inline-start" />
-          Your classes
+          {review ? "All classes" : "Your classes"}
         </Button>
         <h1 className="type-display">{cls.name}</h1>
         <p className="text-muted-foreground">
@@ -88,7 +90,7 @@ async function ClassList({ params, searchParams }: { params: Params; searchParam
         termQuery={termParam ? `?term=${termId}` : ""}
       />
 
-      <RemarksSection slug={slug} results={results} remarks={remarks} />
+      <RemarksSection slug={slug} results={results} remarks={remarks} review={review} />
 
       <ReportCardsSection
         slug={slug}

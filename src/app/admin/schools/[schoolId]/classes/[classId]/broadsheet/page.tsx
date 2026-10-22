@@ -8,7 +8,7 @@ import { requireTeamSchoolContext } from "@/server/auth/viewer";
 import { getClassResults, NoCurrentTerm, NotFound } from "@/server/data";
 import { getSchoolSetup } from "@/server/data/setup";
 
-export const metadata: Metadata = { title: "Master Compilation Sheet" };
+export const metadata: Metadata = { title: "Broadsheet" };
 
 type Params = Promise<{ schoolId: string; classId: string }>;
 type SearchParams = Promise<{ term?: string | string[] }>;
@@ -49,7 +49,7 @@ async function AdminBroadsheetLoader({ params, searchParams }: { params: Params;
       results={results}
       schoolCode={school.code}
       backHref={backHref}
-      backLabel="Class results & slips"
+      backLabel="Class slips"
     />
   );
 }

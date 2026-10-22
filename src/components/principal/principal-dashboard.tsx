@@ -27,14 +27,18 @@ export function PrincipalDashboard({ data }: { data: PrincipalOverview }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const { summary } = data;
+  // A class with no students this term has nothing to finish; it is named once under its section, not listed.
+  const classesWithStudents = data.sections.reduce((n, s) => n + s.classes.filter((c) => c.status !== "no_students").length, 0);
 
   const sections = useMemo(() => {
     const q = search.trim().toLowerCase();
     return data.sections
       .map((section) => ({
         ...section,
+        empty: section.classes.filter((c) => c.status === "no_students"),
         classes: section.classes.filter(
           (c) =>
+            c.status !== "no_students" &&
             (filter === "all" || (filter === "done") === (c.status === "up_to_date")) &&
             (!q || c.name.toLowerCase().includes(q) || (c.teacher?.fullName.toLowerCase().includes(q) ?? false)),
         ),
@@ -57,7 +61,7 @@ export function PrincipalDashboard({ data }: { data: PrincipalOverview }) {
         <div className="flex flex-col gap-1">
           <span className="type-caption text-muted-foreground">Classes still to finish</span>
           <span className={cn("type-title type-figure", summary.laggingClasses > 0 ? "text-foreground" : "text-success")}>
-            {summary.laggingClasses} <span className="type-body text-muted-foreground">of {summary.totalClasses}</span>
+            {summary.laggingClasses} <span className="type-body text-muted-foreground">of {classesWithStudents}</span>
           </span>
           <span className="type-caption text-muted-foreground">{plural(summary.totalStudents, "student", "students")} this term</span>
         </div>
@@ -102,6 +106,9 @@ export function PrincipalDashboard({ data }: { data: PrincipalOverview }) {
                 <ClassRow key={cls.id} cls={cls} slug={data.school.slug} />
               ))}
             </ul>
+            {filter === "all" && !search.trim() && section.empty.length > 0 && (
+              <p className="type-caption text-muted-foreground">No students this term in {section.empty.map((c) => c.name).join(", ")}.</p>
+            )}
           </section>
         ))
       )}
@@ -153,19 +160,20 @@ function ClassRow({ cls, slug }: { cls: ClassLaggingReport; slug: string }) {
         )}
         <WhatIsLeft cls={cls} />
       </div>
-      <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/${slug}/classes/${cls.id}/broadsheet`} />} className="w-fit shrink-0">
-        <TablePropertiesIcon data-icon="inline-start" />
-        Broadsheet
-      </Button>
+      {cls.scores.totalSubjects > 0 && (
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/${slug}/classes/${cls.id}/broadsheet`} />} className="w-fit shrink-0">
+          <TablePropertiesIcon data-icon="inline-start" />
+          Broadsheet
+        </Button>
+      )}
     </li>
   );
 }
 
 /** What is left for a class, in words. */
 function WhatIsLeft({ cls }: { cls: ClassLaggingReport }) {
-  if (cls.status === "no_students") return <p className="type-caption text-muted-foreground">No students this term.</p>;
   const lines: string[] = [];
-  if (cls.scores.totalSubjects === 0) lines.push("No scores entered yet.");
+  if (cls.scores.totalSubjects === 0) lines.push("No subjects set for this class yet. The VoxLMS team sets them.");
   else if (cls.scores.unfinished.length > 0)
     lines.push(`Scores still missing in ${cls.scores.unfinished.map((u) => `${u.name} (${u.missingCount} ${u.missingCount === 1 ? "student" : "students"})`).join(", ")}.`);
   if (cls.remarks.pending > 0) lines.push(`${plural(cls.remarks.pending, "comment", "comments")} still to write.`);

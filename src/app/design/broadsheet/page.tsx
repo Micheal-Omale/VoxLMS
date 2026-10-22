@@ -5,7 +5,7 @@ import { BroadsheetSkeleton } from "@/components/broadsheet/broadsheet-skeleton"
 import { BroadsheetView } from "@/components/broadsheet/broadsheet-view";
 import { demoResults } from "@/app/design/demo-results";
 
-export const metadata: Metadata = { title: "Broadsheet Preview · Design" };
+export const metadata: Metadata = { title: "Broadsheet" };
 
 type SearchParams = Promise<{ parts?: string; subjects?: string; state?: string }>;
 
@@ -33,7 +33,7 @@ async function BroadsheetDemo({ searchParams }: { searchParams: SearchParams }) 
       results={results}
       schoolCode="GHS"
       backHref="/design/results"
-      backLabel="Design Preview Overview"
+      backLabel="Results preview"
     />
   );
 }

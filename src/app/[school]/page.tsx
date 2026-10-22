@@ -11,7 +11,7 @@ import { requireSchoolContext } from "@/server/auth/viewer";
 import { PrincipalDashboard } from "@/components/principal/principal-dashboard";
 import { getCurrentTerm, getPrincipalOverview, listHomeClasses, NoCurrentTerm } from "@/server/data";
 
-export const metadata: Metadata = { title: "School Overview" };
+export const metadata: Metadata = { title: "Your classes" };
 
 type Params = Promise<{ school: string }>;
 

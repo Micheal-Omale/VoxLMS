@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { PrincipalDashboard } from "@/components/principal/principal-dashboard";
 import type { PrincipalOverview } from "@/server/data";
 
-export const metadata: Metadata = { title: "Principal Portal Preview · Design" };
+export const metadata: Metadata = { title: "Principal home" };
 
 export default function PrincipalDesignPreview() {
   const sampleOverview: PrincipalOverview = {
