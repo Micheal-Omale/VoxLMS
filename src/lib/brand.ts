@@ -3,5 +3,16 @@
 export const brand = {
   name: "VoxLMS",
   /** International format, digits only, for wa.me links. Null until there is a support line. */
-  supportWhatsApp: null as string | null,
+  supportWhatsApp: "2348124994445" as string | null,
+  /** What a school pays, per student; shown on the homepage. */
+  plans: {
+    basic: { naira: 500, label: "VoxLMS on the card" },
+    schoolLogo: { naira: 1000, label: "Your school’s logo" },
+    per: "per student, each term",
+  },
 };
+
+/** A wa.me link with a message typed in for them, or null until there is a support line. */
+export function whatsAppLink(message: string): string | null {
+  return brand.supportWhatsApp ? `https://wa.me/${brand.supportWhatsApp}?text=${encodeURIComponent(message)}` : null;
+}
